@@ -4,7 +4,7 @@ temporary patron cards are issued barcodes starting with SR, but are sometimes a
 ```sql 
 SELECT
 -- patron record number, barcode, and create date. 
-r.record_num,
+'p' || r.record_num || 'a',
 p.index_entry,
 r.creation_date_gmt
 
@@ -43,6 +43,9 @@ e.index_entry
 
 HAVING COUNT(e.index_entry) > 1
 )
+
+ORDER BY 
+r.creation_date_gmt DESC
 ```
 
 # Find patrons with note of "ConnectED"
