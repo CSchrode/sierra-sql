@@ -44,3 +44,25 @@ e.index_entry
 HAVING COUNT(e.index_entry) > 1
 )
 ```
+
+# Find patrons with note of "ConnectED"
+```sql
+SELECT
+*
+
+FROM
+
+sierra_view.record_metadata as r
+
+JOIN
+sierra_view.patron_record  as p
+ON
+  p.record_id = r.id
+
+JOIN
+sierra_view.varfield as v 
+ON
+  (v.record_id = r.id) AND (v.varfield_type_code = 'x') AND (v.field_content = 'ConnectED')
+
+where r.record_type_code = 'p'
+```
