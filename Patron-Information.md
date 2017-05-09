@@ -183,7 +183,7 @@ ORDER BY
 r.creation_date_gmt DESC
 ```
 
-# Find patrons with note of "ConnectED"
+## Find patrons with note of "ConnectED"
 ```sql
 SELECT
 *
