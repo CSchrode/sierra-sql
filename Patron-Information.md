@@ -1,4 +1,56 @@
-# Find duplicate patron barcodes that start with “SR”
+# Find duplicate patrons
+***
+
+## Find duplicate patrons by birthdate + name + barcode
+
+sample output:
+```csv
+"1990-01-01";"John Q Patron";"12345678";2
+"1977-02-02";"Betty J Patron"; "12345679";2
+```
+
+```sql
+SELECT
+
+p.birth_date_gmt,
+n.first_name || COALESCE(' ' || NULLIF(n.middle_name, ''), '') || ' ' || n.last_name as patron_name,
+e.index_entry,
+count(*) as matches
+
+FROM
+sierra_view.record_metadata AS r
+
+JOIN
+sierra_view.patron_record AS p
+ON
+  p.record_id = r.id
+
+JOIN
+sierra_view.patron_record_fullname AS n
+ON
+  n.patron_record_id = r.id
+
+JOIN
+sierra_view.phrase_entry AS e
+ON
+  (e.record_id = r.id) AND (e.index_tag = 'b') AND (e.varfield_type_code = 'b')
+
+WHERE 
+r.record_type_code = 'p'
+-- and r.creation_date_gmt >= '2017-05-01'
+
+GROUP BY
+p.birth_date_gmt,
+patron_name,
+e.index_entry
+
+HAVING
+COUNT(*) > 1
+```
+
+***
+
+## Find duplicate patron barcodes that start with “SR”
 temporary patron cards are issued barcodes starting with SR, but are sometimes accidentally duplicated. This query will find those patron record nums.
 
 sample output:
