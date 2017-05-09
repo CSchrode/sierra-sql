@@ -1,6 +1,12 @@
 # Find duplicate patron barcodes that start with “SR”
 temporary patron cards are issued barcodes starting with SR, but are sometimes accidentally duplicated. This query will find those patron record nums.
 
+sample output:
+```csv
+"p1234567a";"sr123456";"2017-04-23 11:20:59-04"
+"p1234568a";"sr123456";"2017-04-04 15:11:56-04"
+```
+
 ```sql 
 SELECT
 -- patron record number, barcode, and create date. 
