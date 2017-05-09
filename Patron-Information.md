@@ -1,6 +1,81 @@
 # Find duplicate patrons
 ***
 
+## Find duplicate patrons by name + birthdate
+
+sample output
+"p1234567a";"Patron, John Q 1977-01-01";15;"sm";"2015-08-26 17:44:31-04"
+"p7654321a";"Patron, John Q 1977-01-01";0;"sm";"2017-05-06 08:35:19-04"
+
+```sql
+SELECT
+'p' || r.record_num || 'a' as patron_record_num,
+pn.last_name || ', ' ||pn.first_name || COALESCE(' ' || NULLIF(pn.middle_name, ''), '') || ' ' || pr.birth_date_gmt,
+pr.ptype_code,
+pr.home_library_code,
+pr.activity_gmt
+
+FROM
+sierra_view.patron_record_fullname as pn
+
+JOIN
+sierra_view.patron_record as pr
+ON
+  pr.record_id = pn.patron_record_id
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = pr.record_id
+
+WHERE
+pr.birth_date_gmt || pn.first_name || COALESCE(' ' || NULLIF(pn.middle_name, ''), '') || ' ' || pn.last_name 
+IN
+(
+	SELECT
+
+	p.birth_date_gmt ||
+	n.first_name || COALESCE(' ' || NULLIF(n.middle_name, ''), '') || ' ' || n.last_name as patron_name
+	-- e.index_entry,
+	-- count(*) as matches
+
+	FROM
+	sierra_view.record_metadata AS r
+
+	JOIN
+	sierra_view.patron_record AS p
+	ON
+	  p.record_id = r.id
+
+	JOIN
+	sierra_view.patron_record_fullname AS n
+	ON
+	  n.patron_record_id = r.id
+
+	-- JOIN
+	-- sierra_view.phrase_entry AS e
+	-- ON
+	--   (e.record_id = r.id) AND (e.index_tag = 'b') AND (e.varfield_type_code = 'b')
+
+	WHERE 
+	r.record_type_code = 'p'
+	-- and r.creation_date_gmt >= '2017-05-01'
+
+	GROUP BY
+	p.birth_date_gmt,
+	patron_name
+	-- e.index_entry
+
+	HAVING
+	COUNT(*) > 1
+)
+
+ORDER BY
+pn.last_name || pn.first_name || pr.birth_date_gmt || COALESCE(' ' || NULLIF(pn.middle_name, ''), '')
+```
+
+
+
 ## Find duplicate patrons by birthdate + name + barcode
 
 sample output:
