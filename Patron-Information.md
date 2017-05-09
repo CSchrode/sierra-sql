@@ -4,8 +4,10 @@
 ## Find duplicate patrons by name + birthdate
 
 sample output
+```csv
 "p1234567a";"Patron, John Q 1977-01-01";15;"sm";"2015-08-26 17:44:31-04"
 "p7654321a";"Patron, John Q 1977-01-01";0;"sm";"2017-05-06 08:35:19-04"
+```
 
 ```sql
 SELECT
