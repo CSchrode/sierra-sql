@@ -45,3 +45,18 @@ ON
 ORDER BY code_num
 ```
 
+## Find location code numbers and names
+SELECT
+l.code,
+n.name
+
+FROM 
+sierra_view.location as l
+
+JOIN
+sierra_view.location_name as n
+ON
+  n.location_id = l.id
+
+ORDER BY 
+l.code
