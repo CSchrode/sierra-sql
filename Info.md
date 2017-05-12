@@ -1,6 +1,6 @@
 # Useful informational queries
 
-## Find stat group (aka: "terminal number", "statistical group" 
+## Find stat group (aka: "terminal number", "statistical group")
 sample output
 ```csv
 0;Main Unknown
