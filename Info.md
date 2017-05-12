@@ -46,6 +46,7 @@ ORDER BY code_num
 ```
 
 ## Find location code numbers and names
+```sql
 SELECT
 l.code,
 n.name
@@ -60,3 +61,4 @@ ON
 
 ORDER BY 
 l.code
+```
