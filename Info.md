@@ -1,6 +1,6 @@
 # Useful informational queries
 
-## Find stat group (aka: "terminal number", "statistical group")
+## Find stat group (aka: "terminal number", "statistical group") code number and name 
 sample output
 ```csv
 0;Main Unknown
@@ -25,3 +25,23 @@ on
 ORDER BY 
 g.code_num
 ```
+
+## Find "Agency" code number and name
+
+```sql
+SELECT
+
+p.code_num as code,
+n.name
+
+FROM 
+sierra_view.agency_property as p
+
+JOIN
+sierra_view.agency_property_name as n
+ON
+  n.agency_property_id = p.id
+
+ORDER BY code_num
+```
+
