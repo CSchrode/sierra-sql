@@ -1,6 +1,76 @@
 # Find duplicate patrons
 ***
 
+## Find patron records that have duplicate barcodes
+If barcode number is repeated on multiple records, this will display the patron record information
+
+sample output:
+```csv
+
+```
+
+```sql
+SELECT
+r.creation_date_gmt as created_date,
+e.index_entry as barcode,
+'p' || r.record_num || 'a' as patron_record_num,
+n.last_name || ', ' ||n.first_name || COALESCE(' ' || NULLIF(n.middle_name, ''), '') || ' ' || p.birth_date_gmt as patron,
+p.ptype_code as ptype,
+p.activity_gmt as last_circ_activity,
+p.expiration_date_gmt as expiration_date
+
+FROM
+sierra_view.phrase_entry as e
+
+JOIN
+sierra_view.patron_record as p
+ON
+  p.record_id = e.record_id
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = p.record_id
+
+JOIN
+sierra_view.patron_record_fullname AS n
+ON
+  n.patron_record_id = r.id
+
+
+WHERE 
+e.index_entry IN (
+
+	SELECT
+	e.index_entry as barcode
+
+	FROM
+	sierra_view.patron_record as p
+
+	JOIN
+	sierra_view.phrase_entry AS e
+	ON
+	  e.record_id = p.record_id
+
+	WHERE
+	e.index_tag = 'b'
+	AND e.varfield_type_code = 'b'
+
+	GROUP BY
+	barcode
+
+	HAVING 
+	count(*) > 1
+)
+
+ORDER BY
+barcode,
+patron ASC
+```
+
+
+
+
 ## Find duplicate patrons by name + birthdate + patron code
 
 sample output
