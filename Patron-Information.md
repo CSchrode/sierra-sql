@@ -6,7 +6,11 @@ If barcode number is repeated on multiple records, this will display the patron 
 
 sample output:
 ```csv
-
+created_date;barcode;patron_record_num;patron;ptype;last_circ_activity;expiration_date
+2012-07-19 02:17:11-04;49143662;p1234567a;Patron, John Q 1947-02-26;0;2015-12-22 08:38:26-05;2020-12-22 04:00:00-05
+2016-06-13 14:44:03-04;49143662;p1234568a;Patron, John Q 1947-02-26;0;2016-06-13 14:44:03-04;2021-06-13 04:00:00-04
+2012-07-18 22:59:21-04;50948033;p1234569a;Patron, Patty L 1986-12-12;6;2015-05-26 12:30:29-04;2013-03-06 04:00:00-05
+2013-06-15 16:07:41-04;50948033;p1234570a;Patty, Patty L 1986-12-12;0;2013-07-20 11:16:24.26-04;2018-06-15 04:00:00-04
 ```
 
 ```sql
