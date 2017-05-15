@@ -84,7 +84,9 @@ IN
 )
 
 ORDER BY
-pn.last_name || pn.first_name || pr.birth_date_gmt || COALESCE(' ' || NULLIF(pn.middle_name, ''), '')
+pn.last_name || pn.first_name || pr.birth_date_gmt || COALESCE(' ' || NULLIF(pn.middle_name, ''), ''),
+pr.ptype_code ASC,
+pr.activity_gmt DESC
 ```
 
 
