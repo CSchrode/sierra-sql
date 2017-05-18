@@ -76,7 +76,7 @@ c.id DESC
 limit 1000;
 ```
 
-## Count transactions per hour + application name + op type
+## Count transactions per hour + application name + op type + stat group name
 ```sql
 SELECT
 -- c.id,
@@ -99,8 +99,8 @@ CASE
   WHEN c.op_code = 'b' THEN 'booking'
   WHEN c.op_code = 'u' THEN 'use count'
 END AS op_code_type,
+n.name as stat_group_name,
 count(*)
--- n.name as stat_group_name
 -- c.stat_group_code_num,
 
 FROM
@@ -125,6 +125,7 @@ c.application_name = 'selfcheck'
 GROUP BY 
 hour,
 c.application_name,
+n.name,
 op_code_type
 
 ORDER BY
