@@ -72,7 +72,40 @@ barcode,
 patron ASC
 ```
 
+## Find patrons with *multiple* barcodes
 
+```sql
+SELECT
+'p' || r.record_num || 'a' as record_num
+
+FROM
+sierra_view.record_metadata as r
+
+WHERE
+r.id IN
+(
+	SELECT
+	-- count(*),
+	e.record_id
+
+	FROM
+	sierra_view.patron_record as p
+
+	JOIN
+	sierra_view.phrase_entry as e
+	ON
+	  (e.record_id = p.record_id) AND (e.index_tag = 'b') AND (e.varfield_type_code = 'b')
+
+	GROUP BY
+	e.record_id
+
+	HAVING
+	count(*) > 1
+
+	-- ORDER BY
+	-- count(*)
+)
+```
 
 
 ## Find duplicate patrons by name + birthdate + patron code
