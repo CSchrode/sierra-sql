@@ -93,3 +93,37 @@ ORDER BY
 p.owed_amt,
 first_assessed_fine_date_gmt
 ```
+
+
+## Find negative fines
+
+```sql
+select
+'p' || r.record_num || 'a' as record_num,
+f.assessed_gmt,
+f.invoice_num,
+f.item_charge_amt,
+f.processing_fee_amt,
+f.billing_fee_amt,
+f.charge_code,
+f.charge_location_code,
+f.paid_gmt,
+f.terminal_num,
+f.paid_amt,
+f.initials,
+f.created_code,
+f.is_print_bill,
+f.description
+
+from
+sierra_view.fine as f
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = f.patron_record_id
+
+WHERE
+( (f.item_charge_amt + f.billing_fee_amt + f.processing_fee_amt) - f.paid_amt) < 0
+and (assessed_gmt >= '2017-01-01' and assessed_gmt < '2018-01-01')
+
