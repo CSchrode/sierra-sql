@@ -14,6 +14,8 @@ p.owed_amt as current_owed_amt,
 	sierra_view.fine as f
 
 	WHERE
+
+	-- the date of the statute of limitations fines we're looking for
 	f.assessed_gmt < '2012-09-01'
 	AND f.patron_record_id = p.record_id
 
@@ -22,7 +24,8 @@ p.owed_amt as current_owed_amt,
 ) AS sum_prev_2012_09_01,
 
 -- compute the amount after the purge
-(p.owed_amt - (
+(p.owed_amt - 
+	(
 	SELECT
 	SUM(f.item_charge_amt - f.paid_amt)
 
@@ -30,12 +33,14 @@ p.owed_amt as current_owed_amt,
 	sierra_view.fine as f
 
 	WHERE
+	-- the date of the statute of limitations fines we're looking for
 	f.assessed_gmt < '2012-09-01'
 	AND f.patron_record_id = p.record_id
 
 	GROUP BY
 	f.patron_record_id
-)) as post_purge_owed_amt,
+	)
+) as post_purge_owed_amt,
 
 date_trunc('day',p.expiration_date_gmt) as expiration_date_gmt,
 date_trunc('day',p.activity_gmt) as activity_gmt,
