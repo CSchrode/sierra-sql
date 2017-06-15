@@ -1,6 +1,53 @@
 # Fines
 
-## Find patron's with fines previous to statute of limitations and find what that amount is
+# Find patrons with fines that are within a certain range...
+```sql
+select
+'p' || r.record_num || 'a' as patron_record_num,
+p.expiration_date_gmt,
+SUM( (f.item_charge_amt + f.billing_fee_amt + f.processing_fee_amt) - f.paid_amt) as fine_sum
+
+from
+sierra_view.patron_record as p
+
+JOIN
+sierra_view.fine as f
+ON
+  f.patron_record_id = p.record_id
+
+JOIN
+sierra_view.record_metadata as r
+on
+  r.id = p.record_id
+
+WHERE
+-- p.expiration_date_gmt < '2017-06-15'
+-- and 
+p.record_id IN
+(
+	select
+
+	f.patron_record_id
+
+	FROM
+	sierra_view.fine as f
+
+	group by f.patron_record_id
+
+	HAVING 
+	SUM( (f.item_charge_amt + f.processing_fee_amt + f.billing_fee_amt) - f.paid_amt) <= 0.01
+)
+
+group by
+patron_record_num,
+p.expiration_date_gmt
+
+
+order by
+p.expiration_date_gmt desc
+```
+
+## Find patrons with fines previous to statute of limitations and find what that amount is
 ```sql
 SELECT
 'p' || r.record_num || 'a' as patron_record_num,
