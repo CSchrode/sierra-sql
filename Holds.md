@@ -2,7 +2,7 @@ Find holds that are greater than a certain number of days (365 in the example be
 
 ```sql
 SELECT
--- number of days the hold has been active
+-- number of days the hold has been active (86400 seconds per day)
 (EXTRACT(EPOCH FROM current_timestamp - placed_gmt)/86400)::int as days_active,
 r.record_type_code || r.record_num || 'a' as record_num,
 pr.record_type_code || pr.record_num || 'a' as patron_record_num,
