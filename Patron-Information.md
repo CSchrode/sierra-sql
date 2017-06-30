@@ -41,24 +41,24 @@ sierra_view.patron_record_fullname AS n
 ON
   n.patron_record_id = r.id
 
-
 WHERE 
-e.index_entry IN (
-
+-- combining the index tag with the index entry returns more quickly
+e.index_tag || e.index_entry IN (
+-- 'b' || '63160170',
+-- 'b' || '63274153'
 	SELECT
-	e.index_entry as barcode
+	'b' || e.index_entry as barcode
 
 	FROM
-	sierra_view.patron_record as p
+	sierra_view.phrase_entry AS e
 
 	JOIN
-	sierra_view.phrase_entry AS e
+	sierra_view.patron_record as p
 	ON
-	  e.record_id = p.record_id
+	  p.record_id = e.record_id
 
 	WHERE
-	e.index_tag = 'b'
-	AND e.varfield_type_code = 'b'
+	e.index_tag || e.varfield_type_code = 'bb'
 
 	GROUP BY
 	barcode
