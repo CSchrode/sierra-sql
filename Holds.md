@@ -1,5 +1,184 @@
 ## 90 day holds reports
 
+### Bib-level 90 day holds report (testing)
+```sql
+SELECT
+hold.record_id,
+( 
+	SELECT
+	-- h.record_id,
+	string_agg(h_list.pickup_location_code, ',') as pickup_location_list
+
+	FROM
+	sierra_view.hold as h_list
+
+	WHERE
+	h_list.record_id = hold.record_id
+
+	GROUP BY
+	h_list.record_id
+
+) as pickup_location_list,
+bib_view.record_num,
+bib_view.title,
+date(bib_view.cataloging_date_gmt) as cat_date,
+bib_view.bcode2,
+COUNT (bib_view.id) AS nbr_holds,
+(
+	SELECT
+	sierra_view.varfield_view.field_content
+	
+	FROM
+	sierra_view.varfield_view
+
+	WHERE 
+	sierra_view.varfield_view.record_id = sierra_view.bib_view.id
+	AND sierra_view.varfield_view.record_type_code = 'b'
+	AND sierra_view.varfield_view.varfield_type_code = 'c'
+
+	LIMIT 1 
+) as callnum,
+(
+	SELECT
+	sierra_view.varfield_view.field_content
+	
+	FROM
+	sierra_view.varfield_view
+	
+	WHERE
+	sierra_view.varfield_view.record_id = sierra_view.bib_view.id
+	AND sierra_view.varfield_view.record_type_code = 'b'
+	AND sierra_view.varfield_view.varfield_type_code = 'a'
+
+	LIMIT 1
+) as author,
+(
+	SELECT
+	sierra_view.varfield_view.field_content
+
+	FROM
+	sierra_view.varfield_view
+	
+	WHERE
+	sierra_view.varfield_view.record_id = sierra_view.bib_view.id
+	AND sierra_view.varfield_view.record_type_code = 'b' 
+	AND   sierra_view.varfield_view.varfield_type_code = 'p'
+	LIMIT 1 
+) as pubinfo,
+
+(
+	SELECT
+	COUNT (item_record.id) as bib_items
+	
+	FROM
+	sierra_view.bib_record_item_record_link , sierra_view.item_record
+
+	WHERE
+	sierra_view.bib_record_item_record_link.bib_record_id = hold.record_id
+	AND sierra_view.bib_record_item_record_link.item_record_id = item_record.id
+) as nbr_items,
+
+(
+	SELECT
+	COUNT(item_record.id ) as bib_items_active
+
+	FROM
+	sierra_view.bib_record_item_record_link,
+	sierra_view.item_record
+	
+	LEFT OUTER JOIN sierra_view.checkout
+	ON
+	  sierra_view.item_record.id = sierra_view.checkout.item_record_id
+	
+	JOIN sierra_view.record_metadata
+	ON
+	  sierra_view.record_metadata.id = sierra_view.item_record.id
+	  
+	WHERE
+	sierra_view.bib_record_item_record_link.bib_record_id = hold.record_id
+	AND sierra_view.bib_record_item_record_link.item_record_id = item_record.id
+	-- AND item_record.item_status_code IN ( '-', 't', '!', 'b', 'p', '(', '\@', ')', '_', '=', '+' )
+	AND (item_record.item_status_code IN ( '-', '!', 'b', 'p', '(', '\@', ')', '_', '=', '+' ) -- #20161116 only items in-transit for fewer than 60 days are active, per VM
+	OR (item_record.item_status_code = 't' AND record_metadata.record_type_code = 'i'
+	AND record_metadata.record_last_updated_gmt > now() - interval '60 days' ))
+	AND ( -- #consider longoverdue items to be not active
+		sierra_view.checkout.due_gmt is null  -- #item isnt checked out
+		OR sierra_view.checkout.due_gmt > current_date - interval '60 days' -- #item is checked out, but due date after 60days ago
+	)
+) as nbr_active_items,
+
+(
+	SELECT 
+	COUNT (item_record.id ) as bib_items_inporcessing 
+	
+	FROM
+	sierra_view.bib_record_item_record_link , sierra_view.item_record
+	
+	WHERE
+	sierra_view.bib_record_item_record_link.bib_record_id = hold.record_id
+	AND sierra_view.bib_record_item_record_link.item_record_id = item_record.id
+	AND item_record.item_status_code IN ( 'p' )
+) as nbr_inprocessing_items,
+
+(
+	SELECT 
+	SUM(order_record_cmf.copies) as order_copies
+	
+	FROM
+	sierra_view.bib_record_order_record_link,
+	sierra_view.order_view,
+	sierra_view.order_record_cmf
+
+	WHERE
+	hold.record_id = bib_record_order_record_link.bib_record_id 
+	AND bib_record_order_record_link.order_record_id = order_view.id 
+	AND order_view.record_id = order_record_cmf.order_record_id 
+	AND order_view.received_date_gmt is null 
+	AND order_record_cmf.location_code != 'multi'
+
+	GROUP BY hold.record_id
+) as nbr_ordered_copies
+
+FROM 
+sierra_view.hold
+
+JOIN sierra_view.bib_view 
+ON 
+  hold.record_id = bib_view.id 
+  AND bib_view.cataloging_date_gmt IS NOT NULL 
+
+JOIN sierra_view.patron_record 
+ON
+hold.patron_record_id = patron_record.id 
+AND patron_record.ptype_code IN (  0 , 1 , 2 , 5 , 6 , 10 , 11 , 12 , 15 , 22 , 30 , 31 , 32 , 40 , 41, 196 )
+
+WHERE (
+	(
+		hold.is_frozen = 'f' 
+		AND (
+			(hold.delay_days = 0) 
+			OR (EXTRACT(epoch FROM (SELECT (NOW() - hold.placed_gmt)))/86400::int > delay_days)
+		)
+	) 
+	OR ( patron_record.ptype_code = 196 ) 
+)  -- # Changed criteria to allow frozen/delay_days holds for Admin cards 20160504 LMK
+AND (hold.placed_gmt < current_date - interval '90 days' )
+
+GROUP BY
+hold.record_id, 
+-- 	hold.pickup_location_code,
+bib_view.id, 
+bib_view.record_num,
+bib_view.title,
+bib_view.cataloging_date_gmt,
+bib_view.bcode2
+
+ORDER BY
+title,
+bcode2,
+callnum
+```
+
 ### Bib-level 90 day holds report (currently in production as of 2017-07-14)
 ```sql
 SELECT
