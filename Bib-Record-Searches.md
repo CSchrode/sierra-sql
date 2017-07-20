@@ -4,6 +4,7 @@ SELECT
 r.record_type_code || r.record_num || 'a' as bib_record_num,
 bp.best_title,
 bp.best_author,
+-- MARC 250 Edition info
 (
 	SELECT
 	v.field_content
@@ -21,6 +22,8 @@ bp.best_author,
 	LIMIT 1
 		
 ) as marc_250_edition, 
+
+-- MARC 260 publication info
 (
 	SELECT
 	v.field_content
@@ -39,7 +42,7 @@ bp.best_author,
 		
 ) as marc_260_publication_info,
 
--- URL,
+-- MARC 856 URL data,
 (
 	SELECT
 	array_agg(v.field_content order by v.occ_num)
@@ -56,7 +59,7 @@ bp.best_author,
 		
 ) as marc_856_fields,
 
--- Local label MARC 956
+-- MARC 956 Local label
 (
 	SELECT
 	array_agg(v.field_content order by v.occ_num)
@@ -73,6 +76,7 @@ bp.best_author,
 		
 ) as marc_956_fields,
 
+-- MARC 996 Local label
 (
 	SELECT
 	-- '[''' || string_agg(v.field_content, ''', ''') || ''']' as marc_996_fields
