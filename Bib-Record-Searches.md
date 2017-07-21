@@ -32,6 +32,7 @@ l.bib_record_id NOT IN
 )
 
 GROUP BY
+l.bib_record_id,
 r.record_type_code,
 r.record_num
 ```
