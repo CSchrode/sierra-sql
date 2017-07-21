@@ -12,8 +12,14 @@ sierra_view.record_metadata as r
 ON
   r.id = l.bib_record_id
 
+JOIN
+sierra_view.bib_record as b
+ON
+  b.record_id = l.bib_record_id
+
 WHERE
-l.bib_record_id NOT IN
+b.is_suppressed IS FALSE
+AND l.bib_record_id NOT IN
 (
 	SELECT
 	l_one.bib_record_id
