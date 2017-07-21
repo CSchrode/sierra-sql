@@ -1,4 +1,4 @@
-## Find bib record numbers where all attached items are suppressed
+## Find bib records and return their number where all attached items are suppressed
 ```sql
 SELECT
 -- l.bib_record_id
