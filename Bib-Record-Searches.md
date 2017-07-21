@@ -1,3 +1,42 @@
+## Find bib record numbers where all attached items are suppressed
+```sql
+SELECT
+-- l.bib_record_id
+r.record_type_code || r.record_num || 'a' as bib_record_num
+
+FROM
+sierra_view.bib_record_item_record_link as l
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = l.bib_record_id
+
+WHERE
+l.bib_record_id NOT IN
+(
+	SELECT
+	l_one.bib_record_id
+
+	FROM
+	sierra_view.bib_record_item_record_link as l_one
+
+	JOIN
+	sierra_view.item_record as i_one
+	ON
+	  i_one.record_id = l_one.item_record_id 
+	  AND i_one.is_suppressed IS FALSE
+
+	GROUP BY
+	l_one.bib_record_id
+)
+
+GROUP BY
+r.record_type_code,
+r.record_num
+```
+
+
 ## Find and return bib record information (including multiple varfields) based on local marc 9xx varfield data in the bib record
 ```sql
 SELECT
