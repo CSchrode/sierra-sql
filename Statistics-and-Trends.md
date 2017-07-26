@@ -1,3 +1,42 @@
+# Find numbers of deleted records (by record type code) in a given range of time
+```sql
+SELECT
+r.record_type_code,
+count(*)
+
+FROM
+sierra_view.record_metadata as r
+
+WHERE
+r.campus_code = ''
+AND r.deletion_date_gmt >= '2017-01-01'
+AND r.deletion_date_gmt < '2018-01-01'
+
+GROUP BY
+r.record_type_code
+```
+
+# Find numbers of created records (by record type code) in a given range of time
+```
+SELECT
+r.record_type_code,
+count(*)
+
+FROM
+sierra_view.record_metadata as r
+
+WHERE
+r.campus_code = ''
+AND r.creation_date_gmt >= '2017-01-01'
+AND r.creation_date_gmt < '2018-01-01'
+
+GROUP BY
+r.record_type_code
+
+ORDER BY
+r.record_type_code ASC
+```
+
 # Extract the last X amount of transactions
 ```sql
 SELECT
