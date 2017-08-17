@@ -19,6 +19,23 @@ hold.record_id,
 	h_list.record_id
 
 ) as pickup_location_list,
+
+(
+	-- get the count of OS over 90 days on hold
+	SELECT
+	COUNT(*)
+
+	FROM
+	sierra_view.hold as h_count
+
+	WHERE
+	h_count.record_id = hold.record_id
+	AND h_count.pickup_location_code = 'os'
+	AND h_count.is_frozen = 'f'
+	AND (EXTRACT(epoch FROM (SELECT (NOW() - h_count.placed_gmt)))/86400)::int > 90
+) as count_os_over_90,
+
+
 bib_view.record_num,
 bib_view.title,
 date(bib_view.cataloging_date_gmt) as cat_date,
@@ -162,7 +179,8 @@ WHERE (
 	) 
 	OR ( patron_record.ptype_code = 196 ) 
 )  -- # Changed criteria to allow frozen/delay_days holds for Admin cards 20160504 LMK
-AND (hold.placed_gmt < current_date - interval '90 days' )
+-- AND (hold.placed_gmt < current_date - interval '90 days' ) removed RV
+AND (EXTRACT(epoch FROM (SELECT (NOW() - hold.placed_gmt)))/86400) > 90.0
 
 GROUP BY
 hold.record_id, 
