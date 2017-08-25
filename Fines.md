@@ -47,54 +47,85 @@ order by
 p.expiration_date_gmt desc
 ```
 
-## Find patrons with fines previous to statute of limitations and find what that amount is
-```sql
 SELECT
 'p' || r.record_num || 'a' as patron_record_num,
+(
+	SELECT
+	e.index_entry as barcode
+	from sierra_view.phrase_entry as e
+
+	WHERE
+	e.record_id = r.id
+	AND e.index_tag || e.varfield_type_code = 'bb'
+
+	ORDER BY
+	e.occurrence asc
+
+	LIMIT 1
+) as barcode,
 p.owed_amt as current_owed_amt,
 
 (
 	SELECT
-	SUM(f.item_charge_amt - f.paid_amt)
+	CASE 
+		WHEN SUM( (f.item_charge_amt + f.processing_fee_amt + billing_fee_amt) - f.paid_amt ) = p.owed_amt
+		THEN true
+
+		ELSE false
+	END
 
 	FROM
 	sierra_view.fine as f
 
 	WHERE
-
-	-- the date of the statute of limitations fines we're looking for
-	f.assessed_gmt < '2012-09-01'
-	AND f.patron_record_id = p.record_id
+	f.patron_record_id = p.record_id
 
 	GROUP BY
 	f.patron_record_id
-) AS sum_prev_2012_09_01,
-
--- compute the amount after the purge
-(p.owed_amt - 
-	(
-	SELECT
-	SUM(f.item_charge_amt - f.paid_amt)
-
-	FROM
-	sierra_view.fine as f
-
-	WHERE
-	-- the date of the statute of limitations fines we're looking for
-	f.assessed_gmt < '2012-09-01'
-	AND f.patron_record_id = p.record_id
-
-	GROUP BY
-	f.patron_record_id
-	)
-) as post_purge_owed_amt,
-
-date_trunc('day',p.expiration_date_gmt) as expiration_date_gmt,
-date_trunc('day',p.activity_gmt) as activity_gmt,
+) AS computed_equal_current,
 
 (
 	SELECT
-	date_trunc('day', f.assessed_gmt)
+	SUM( (f.item_charge_amt + f.processing_fee_amt + billing_fee_amt) - f.paid_amt )
+
+	FROM
+	sierra_view.fine as f
+
+	WHERE
+
+	-- the date of the statute of limitations fines we're looking for
+	f.assessed_gmt <= date_trunc('day', (NOW() - INTERVAL '5 years') )
+	AND f.patron_record_id = p.record_id
+
+	GROUP BY
+	f.patron_record_id
+) AS sum_prev_statue_lim_date,
+
+-- compute the amount after the purge
+(	
+	p.owed_amt - (
+		SELECT
+		SUM( (f.item_charge_amt + f.processing_fee_amt + billing_fee_amt) - f.paid_amt )
+
+		FROM
+		sierra_view.fine as f
+
+		WHERE
+		-- the date of the statute of limitations fines we're looking for (5 years prior to today's date)
+		f.assessed_gmt <= date_trunc('day', (NOW() - INTERVAL '5 years') )
+		AND f.patron_record_id = p.record_id
+
+		GROUP BY
+		f.patron_record_id
+	)
+) as post_purge_owed_amt,
+
+date_trunc('day',p.expiration_date_gmt)::date as expiration_date,
+date_trunc('day',p.activity_gmt)::date as activity,
+
+(
+	SELECT
+	date_trunc('day', f.assessed_gmt)::date
 
 	FROM
 	sierra_view.fine as f
@@ -107,7 +138,7 @@ date_trunc('day',p.activity_gmt) as activity_gmt,
 
 	LIMIT
 	1
-) as first_assessed_fine_date_gmt
+) as first_assessed_fine_date
 
 FROM
 sierra_view.record_metadata as r
@@ -130,15 +161,16 @@ AND r.id IN (
 
 	WHERE
 	-- the date of the statute of limitations fines we're looking for
-	f.assessed_gmt < '2012-09-01'
+	f.assessed_gmt <= date_trunc('day', (NOW() - INTERVAL '5 years') )
 
 	GROUP BY
 	f.patron_record_id
 )
 
 ORDER BY
+computed_equal_current,
 p.owed_amt,
-first_assessed_fine_date_gmt
+first_assessed_fine_date
 ```
 
 
