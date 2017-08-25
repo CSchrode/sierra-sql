@@ -49,7 +49,8 @@ p.expiration_date_gmt desc
 
 
 ## Find information about patrons who will have fines purged after statue of limitations
-```
+
+```sql
 SELECT
 'p' || r.record_num || 'a' as patron_record_num,
 (
