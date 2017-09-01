@@ -9,7 +9,7 @@ CREATE TEMP TABLE temp_patron_purge_amts AS
 SELECT
 date_trunc('day', p.paid_date_gmt::timestamp) as date_purged,
 p.patron_record_metadata_id,
-SUM ((p.item_charge_amt + p.processing_fee_amt + p.billing_fee_amt) - p.last_paid_amt) as total_purged 
+SUM ( (p.item_charge_amt + p.processing_fee_amt + p.billing_fee_amt) - (p.last_paid_amt + p.paid_now_amt) ) as total_purged 
 
 FROM
 sierra_view.fines_paid as p
@@ -36,7 +36,8 @@ f.last_name || ', ' || f.first_name || ' ' || f.middle_name as patron_name,
 	AND e.index_tag || e.varfield_type_code = 'bb'
 ) AS barcodes,
 t.total_purged,
-t.date_purged
+t.date_purged,
+r.id as patron_record_id
 
 FROM
 temp_patron_purge_amts as t
