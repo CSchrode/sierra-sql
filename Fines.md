@@ -1,5 +1,61 @@
 # Fines
 
+# Post fines purge report for statute of limitations fines
+```sql
+DROP TABLE IF EXISTS temp_patron_purge_amts;
+
+CREATE TEMP TABLE temp_patron_purge_amts AS 
+
+SELECT
+date_trunc('day', p.paid_date_gmt::timestamp) as date_purged,
+p.patron_record_metadata_id,
+SUM ((p.item_charge_amt + p.processing_fee_amt + p.billing_fee_amt) - p.last_paid_amt) as total_purged 
+
+FROM
+sierra_view.fines_paid as p
+
+WHERE
+p.payment_status_code = '6'
+
+GROUP BY
+p.patron_record_metadata_id,
+date_purged;
+
+SELECT
+r.record_type_code || r.record_num || 'a' as patron_record_num,
+f.last_name || ', ' || f.first_name || ' ' || f.middle_name as patron_name,
+(
+	SELECT
+	string_agg(e.index_entry , ',')
+
+	FROM
+	sierra_view.phrase_entry as e
+
+	WHERE
+	e.record_id = r.id
+	AND e.index_tag || e.varfield_type_code = 'bb'
+) AS barcodes,
+t.total_purged,
+t.date_purged
+
+FROM
+temp_patron_purge_amts as t
+
+LEFT OUTER JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = t.patron_record_metadata_id
+
+LEFT OUTER JOIN
+sierra_view.patron_record_fullname as f
+ON
+  f.patron_record_id = r.id
+
+ORDER BY
+t.date_purged DESC;
+```
+
+
 # Find patrons with fines that are within a certain range...
 ```sql
 select
