@@ -26,7 +26,7 @@ r.record_type_code || r.record_num || 'a' as patron_record_num,
 f.last_name || ', ' || f.first_name || ' ' || f.middle_name as patron_name,
 (
 	SELECT
-	string_agg(e.index_entry , ',')
+	string_agg(e.index_entry , ',' order by e.occurrence)
 
 	FROM
 	sierra_view.phrase_entry as e
@@ -52,7 +52,10 @@ ON
   f.patron_record_id = r.id
 
 ORDER BY
-t.date_purged DESC;
+t.date_purged DESC,
+f.last_name,
+f.first_name,
+f.middle_name;
 ```
 
 
