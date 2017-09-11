@@ -1,3 +1,21 @@
+# Find cases where an item record is linked to more than one bib record
+```sql
+-- find item records that are linked to more than one bib record
+SELECT
+l.item_record_id,
+count(bib_record_id)
+
+FROM
+sierra_view.bib_record_item_record_link as l
+
+GROUP BY
+l.item_record_id
+
+HAVING
+count(bib_record_id) > 1
+```
+
+
 # Count number of items by criteria
 ```sql
 SELECT
