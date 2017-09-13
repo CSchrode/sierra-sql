@@ -1,3 +1,325 @@
+# Find specific item types in specific locations and group them by callnumber classes
+```sql
+﻿drop table if exists temp_search1;
+drop table if exists temp_search2;
+drop table if exists temp_search3;
+
+create temp table temp_search1 AS
+SELECT
+-- i.location_code,
+i.record_id as item_record_id,
+l.bib_record_id,
+(
+	SELECT
+-- 	string_agg(v.field_content, ',' order by v.occ_num)
+
+-- 	v.field_content
+
+	regexp_matches(
+		regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'i'), -- get the call number strip the subfield indicators
+		'(^[0-9]{3})'
+	) as call_number
+
+-- 	regexp_matches(v.field_content,'[0-9]{3,}') as call_number
+
+-- 	regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'i') -- get the call number strip the subfield indicators
+
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	v.record_id = l.bib_record_id
+	AND v.varfield_type_code = 'c'
+
+	ORDER BY v.occ_num
+
+	LIMIT 1
+)[1] as call_class
+-- count(i.record_id)
+
+-- count(i.record_id)
+-- ,
+-- NOW()::timestamp - r.creation_date_gmt::timestamp as age,
+-- NOW()::timestamp - i.last_checkin_gmt::timestamp as time_since_last_checkin
+
+FROM
+sierra_view.item_record as i
+
+JOIN
+sierra_view.record_metadata as r
+ON
+   r.id = i.record_id
+
+LEFT OUTER JOIN
+sierra_view.bib_record_item_record_link as l
+ON
+  l.item_record_id = r.id
+
+
+LEFT OUTER JOIN sierra_view.checkout AS c ON
+   i.id = c.item_record_id
+
+
+
+WHERE
+-- call_class is null
+i.itype_code_num IN (0,157)
+AND i.item_status_code IN 
+-- ('o')
+('-') 
+
+-- DATE
+-- commnet to "--/DATE" to get the entire group number
+-- AND c.due_gmt is null 
+-- AND NOW()::timestamp - r.creation_date_gmt::timestamp > INTERVAL '2 years'
+-- AND (
+--      NOW()::timestamp - i.last_checkin_gmt::timestamp > INTERVAL '2 years'
+--      OR i.last_checkin_gmt is null
+-- )
+--/DATE
+
+
+AND i.location_code IN (
+     -- locations are anything at main
+     SELECT
+     code
+--     , name
+
+     FROM
+     sierra_view.location_myuser as l
+
+     WHERE
+--     lower(l.code) ~ lower('((2ra.{0,})|3(ra|aa|ha|la).{0,})')
+--      lower(l.code) ~ lower('((2ra.{0,})|(3ra)|(2ea)|(2ga)|(2sa)|(3aa)|(3ha)|(3la))')
+	lower(l.code) ~ lower('((2ra.{0,})|(3ra))') -- matches all of 2ra* and 3ra
+-- 	lower(l.code) ~ lower('((2ra.{0,}))') -- matches all of 2ra*
+-- 	l.code = '2rabu'
+)
+
+-- group by
+-- -- i.location_code,
+-- call_class
+
+-- i.location_code,
+
+-- -- i.record_id,
+-- i.location_code
+
+-- ORDER BY
+-- i.location_code,
+-- call_class
+-- i.location_code
+
+;
+
+
+
+------------------------------------------------------
+
+create temp table temp_search2 AS
+SELECT
+-- i.location_code,
+i.record_id as item_record_id,
+l.bib_record_id,
+(
+	SELECT
+-- 	string_agg(v.field_content, ',' order by v.occ_num)
+
+-- 	v.field_content
+
+	regexp_matches(
+		regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'i'), -- get the call number strip the subfield indicators
+		'(^[0-9]{3})'
+	) as call_number
+
+-- 	regexp_matches(v.field_content,'[0-9]{3,}') as call_number
+
+-- 	regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'i') -- get the call number strip the subfield indicators
+
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	v.record_id = l.bib_record_id
+	AND v.varfield_type_code = 'c'
+
+	ORDER BY v.occ_num
+
+	LIMIT 1
+)[1] as call_class
+-- count(i.record_id)
+
+-- count(i.record_id)
+-- ,
+-- NOW()::timestamp - r.creation_date_gmt::timestamp as age,
+-- NOW()::timestamp - i.last_checkin_gmt::timestamp as time_since_last_checkin
+
+FROM
+sierra_view.item_record as i
+
+JOIN
+sierra_view.record_metadata as r
+ON
+   r.id = i.record_id
+
+LEFT OUTER JOIN
+sierra_view.bib_record_item_record_link as l
+ON
+  l.item_record_id = r.id
+
+
+LEFT OUTER JOIN sierra_view.checkout AS c ON
+   i.id = c.item_record_id
+
+
+
+WHERE
+-- call_class is null
+i.itype_code_num IN (0,157)
+AND i.item_status_code IN 
+-- ('o')
+('-', 't', '!') 
+
+-- DATE
+-- commnet to "--/DATE" to get the entire group number
+AND c.due_gmt is null 
+AND NOW()::timestamp - r.creation_date_gmt::timestamp > INTERVAL '2 years'
+AND (
+     NOW()::timestamp - i.last_checkin_gmt::timestamp > INTERVAL '2 years'
+     OR i.last_checkin_gmt is null
+)
+--/DATE
+
+
+AND i.location_code IN (
+     -- locations are anything at main
+     SELECT
+     code
+--     , name
+
+     FROM
+     sierra_view.location_myuser as l
+
+     WHERE
+--     lower(l.code) ~ lower('((2ra.{0,})|3(ra|aa|ha|la).{0,})')
+--      lower(l.code) ~ lower('((2ra.{0,})|(3ra)|(2ea)|(2ga)|(2sa)|(3aa)|(3ha)|(3la))')
+	lower(l.code) ~ lower('((2ra.{0,})|(3ra))') -- matches all of 2ra* and 3ra
+-- 	lower(l.code) ~ lower('((2ra.{0,}))') -- matches all of 2ra*
+-- 	l.code = '2rabu'
+)
+
+-- group by
+-- -- i.location_code,
+-- call_class
+
+-- i.location_code,
+
+-- -- i.record_id,
+-- i.location_code
+
+-- ORDER BY
+-- i.location_code,
+-- call_class
+-- i.location_code
+
+;
+
+------------------------------------------------------
+
+-- SELECT
+-- *
+-- from
+-- temp_search limit 100
+
+
+
+-- SELECT
+-- t.call_class,
+-- count(t.item_record_id)
+-- 
+-- FROM
+-- temp_search as t
+-- 
+-- GROUP BY
+-- t.call_class
+-- 
+-- ORDER BY
+-- t.call_class;
+
+create temp table temp_search3 AS
+SELECT
+t1.call_class
+
+from
+temp_search1 as t1
+
+UNION
+
+SELECT
+t2.call_class
+
+FROM
+temp_search2 as t2;
+
+
+
+-- to produce the final data for the report, we want to run this one, and then run the next query, to produce our final results
+-- NOTE: the items that don't have classifications will need to be queired seperately ... (count (*) )
+--- query 1
+-- SELECT
+-- t3.call_class,
+-- COUNT(t1.item_record_id) as count_items_search1
+-- 
+-- FROM
+-- temp_search3 as t3
+-- 
+-- LEFT OUTER JOIN
+-- temp_search1 as t1
+-- ON
+--   t1.call_class = t3.call_class
+-- 
+-- GROUP BY
+-- t3.call_class
+-- 
+-- ORDER BY
+-- t3.call_class
+-- 
+-- SELECT
+-- count(*)
+-- from temp_search1
+-- 
+-- where
+-- call_class is null
+
+
+--- query 2
+-- SELECT
+-- t3.call_class,
+-- COUNT(t1.item_record_id) as count_items_search1
+-- 
+-- FROM
+-- temp_search3 as t3
+-- 
+-- LEFT OUTER JOIN
+-- temp_search1 as t1
+-- ON
+--   t1.call_class = t3.call_class
+-- 
+-- GROUP BY
+-- t3.call_class
+-- 
+-- ORDER BY
+-- t3.call_class
+-- 
+-- SELECT
+-- count(*)
+-- from temp_search1
+-- 
+-- where
+-- call_class is null
+```
+
+
 # Find numbers of deleted records (by record type code) in a given range of time
 ```sql
 SELECT
