@@ -1,4 +1,4 @@
-# Find specific item types in specific locations and group them by callnumber classes
+# Find specific item types in specific locations and group them by callnumber classes (work in progress)
 ```sql
 ﻿drop table if exists temp_search1;
 drop table if exists temp_search2;
