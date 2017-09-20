@@ -1,3 +1,152 @@
+# Circulations from main branch (work in progress)
+```sql
+DROP TABLE IF EXISTS temp_call_groups;
+CREATE TEMP TABLE temp_call_groups (
+id SERIAL NOT NULL,
+group_value VARCHAR(10),
+group_name VARCHAR(512)
+);
+
+INSERT INTO temp_call_groups (group_value, group_name) VALUES 
+('000', 'Computer science, information & general works'),
+('100', 'Philosophy & psychology'),
+('200', 'Religion'),
+('300', 'Social sciences'),
+('400', 'Language'),
+('500', 'Science'),
+('600', 'Technology'),
+('700', 'Arts & recreation'),
+('800', 'Literature'),
+('900', 'History & geography'),
+('fiction', 'PLCH fiction'),
+('easy', 'PLCH easy'),
+('other', 'PLCH other'),
+('', 'PLCH none')
+;
+
+-- select * from temp_call_groups;
+
+DROP TABLE IF EXISTS temp_circs_from_main;
+CREATE TEMP TABLE temp_circs_from_main AS
+SELECT
+
+(
+	SELECT
+-- 	v.field_content as callnumber
+	regexp_matches(
+		regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'i'), -- get the call number strip the subfield indicators
+		-- looking for :
+		-- groups where 3 or more numbers in a row (dewey)
+		-- words "fiction", "easy", or "other" appear anywhere in the string
+		-- two or more letters appear in succession
+		'((^[0-9]{3})|(fiction.*)|(easy.*)|(other.*)|([a-z]{2,}))', 
+		'gi'
+	) AS call_number
+	
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	-- get the call number from the bib record
+	v.record_id = l.bib_record_id
+	AND v.varfield_type_code = 'c'
+
+	ORDER BY 
+	v.occ_num
+
+	LIMIT 1
+)[1] AS call_class,
+count(t.item_record_id)
+
+FROM
+sierra_view.circ_trans AS t
+
+LEFT OUTER JOIN
+sierra_view.item_record AS i
+ON
+  i.record_id = t.item_record_id
+
+LEFT OUTER JOIN
+sierra_view.bib_record_item_record_link AS l
+ON
+  l.item_record_id = i.record_id
+
+WHERE
+-- type of transaction is checkout 'o'
+t.op_code = 'o'
+
+-- item type is book (0) or music score (157)
+-- AND i.itype_code_num IN (0,157)
+
+-- item type is Juvenile Books (2, 22, 159)
+-- item type is Teen Books (4, 24)
+AND i.itype_code_num IN (2, 22, 159, 4, 24)
+
+-- from all Main locations
+-- to get an updated list check here ...
+-- https://github.com/plch/sierra-sql/wiki/Info#find-stat-group-aka-terminal-number-statistical-group-code-number-and-name
+AND t.stat_group_code_num IN (
+0,
+1,
+9,
+10,
+11,
+12,
+13,
+14,
+21,
+31,
+41,
+42,
+43,
+44,
+51,
+61,
+62
+)
+
+GROUP BY
+call_class;
+
+-- FULL OUTER JOIN two temp tables to get all values to our final counts
+
+SELECT 
+* 
+
+FROM 
+(
+	SELECT 
+	g.group_value,
+	g.group_name
+
+	FROM
+	temp_call_groups as g
+) as t1
+
+FULL OUTER JOIN
+(
+	SELECT 
+	CASE 	
+		WHEN m.call_class ~ '^[0-9]{3}' THEN substring(m.call_class from 1 for 1) || '00'
+		ELSE lower(m.call_class)
+	END as class,
+	SUM(m.count)
+
+	FROM 
+	temp_circs_from_main AS m
+
+	GROUP BY
+	class
+) AS t2
+ON t2.class = t1.group_value
+
+ORDER BY
+t1.group_value,
+t2.class
+```
+
+
+
 # Find specific item types in specific locations and group them by callnumber classes (work in progress)
 ```sql
 ﻿drop table if exists temp_search1;
