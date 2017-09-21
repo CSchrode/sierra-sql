@@ -2,8 +2,42 @@
 # General Tips for the sierra-db
 
 * To get record numbers--for use in the Sierra Desktop Application import record numbers feature for example, we can join the table ```sierra_view.record_metadata```, appending the columns (and extra checkdigit character, ‘a’) ```sierra_view.record_type_code || sierra_view.record_number || ‘a’```
-* Picking the correct primary / foreign keys for joins can be tricky. 
-    * Joining varfields in results can be tricky, since these  can be repeatable fields. 
+
+Example:
+```sql
+SELECT
+r.record_type_code || r.record_num || 'a' as record_number
+
+FROM
+sierra_view.record_metadata as r
+
+WHERE
+r.record_type_code || r.campus_code = 'p'
+and r.deletion_date_gmt is null
+
+limit 5
+```
+
+... would produce the following output for example:
+```
+p2160402a
+p1117209a
+p2072447a
+p1152091a
+p1507488a
+```
+
+* Picking the correct primary / foreign keys for joins can be tricky.
+    * Make sure you carefully examine the sierra DNA documentation 
+    * ```id``` generally is the primary key, as it is in ```sierra_view.record_metadata```. This means that it'll appear in other tables. For example, it might appear as 
+
+```bib_record_id``` in table ```sierra_view.bib_record_item_record_link``` 
+
+or
+
+```record_id``` in table ```sierra_view.bib_record```
+
+* Joining varfields in results can be tricky, since these  can be repeatable fields. 
     * Typically you want to avoid multiple rows of results being produced because of a unexpected (or expected) repeating varfields. 
     * An example of this could be notes fields, added authors, etc, which could appear multiple times. The following query should return only one row for the one patron, but instead we get two, because the patron has two barcodes assigned to them.
 ```sql
