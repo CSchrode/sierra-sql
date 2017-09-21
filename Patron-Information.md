@@ -1,3 +1,57 @@
+# Find patrons with more than 1 name listed
+```sql
+SELECT
+r.record_type_code || r.record_num || 'a' as record_number,
+(
+	SELECT
+	string_agg(v.field_content, ',' order by v.occ_num)
+
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	v.record_id = r.id
+	AND v.varfield_type_code = 'b'
+) as barcodes,
+
+(
+	SELECT
+	string_agg(n.last_name || ' ' || n.first_name || ' ' || n.middle_name, ', ' order by n.display_order)
+
+	FROM
+	sierra_view.patron_record_fullname as n
+
+	WHERE
+	n.patron_record_id = r.id
+) as fullnames_listed
+
+-- ,count(*)
+
+FROM
+sierra_view.record_metadata as r
+
+JOIN
+sierra_view.patron_record_fullname as f
+ON
+  f.patron_record_id = r.id
+
+-- JOIN
+-- sierra_view.varfield as v
+-- ON
+--   v.record_id = r.id
+
+WHERE
+r.record_type_code || r.campus_code = 'p'
+and r.deletion_date_gmt is null
+
+GROUP BY
+r.id, r.record_type_code, r.record_num
+
+HAVING
+count(*) > 1
+```
+
+
 # Find duplicate patrons
 ***
 
