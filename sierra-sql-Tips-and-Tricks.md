@@ -48,6 +48,9 @@ WHERE
 p.record_id = 481037410624
 ```
 
+This might produce data similar to this
+```53933149,49548969 / PREV ID```
+
 * Some of the views combine multiple tables, and can be convenient, but can be much slower than other methods of retrieving data.
 ```sierra_view.*_view```
 Example: ```sierra_view.bib_view``` combines data from multiple tables, but query speeds can be slower than accessing other tables more directly. 
