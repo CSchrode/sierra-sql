@@ -25,8 +25,6 @@ r.record_type_code || r.record_num || 'a' as record_number,
 	n.patron_record_id = r.id
 ) as fullnames_listed
 
--- ,count(*)
-
 FROM
 sierra_view.record_metadata as r
 
@@ -34,11 +32,6 @@ JOIN
 sierra_view.patron_record_fullname as f
 ON
   f.patron_record_id = r.id
-
--- JOIN
--- sierra_view.varfield as v
--- ON
---   v.record_id = r.id
 
 WHERE
 r.record_type_code || r.campus_code = 'p'
@@ -50,7 +43,6 @@ r.id, r.record_type_code, r.record_num
 HAVING
 count(*) > 1
 ```
-
 
 # Find duplicate patrons
 ***
