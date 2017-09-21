@@ -24,7 +24,7 @@ WHERE
 p.record_id = 481037410624
 ```
 
-To avoid this, we could either select only one value for the barcode, or select all matching values and aggregate them into one value (so that we only get one row of results back as expected) with the string_agg() function that postgresql offers as a subquery in the select statement:
+To avoid this, we could either select only one value for the barcode, or select all matching values and aggregate them into one value (so that we only get one row of results back as expected) with the ```string_agg()``` function that postgresql offers as a subquery in the select statement:
 
 ```sql
 SELECT
