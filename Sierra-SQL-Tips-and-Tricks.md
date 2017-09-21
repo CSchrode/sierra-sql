@@ -1,3 +1,4 @@
+![PLCH_Logo_Horizontal_Red.png](https://raw.githubusercontent.com/plch/brand-and-logos/master/PLCH_Logo_Horizontal_Red.png "PLCH")
 # General Tips for the sierra-db
 
 * To get record numbers--for use in the Sierra Desktop Application import record numbers feature for example, we can join the table ```sierra_view.record_metadata```, appending the columns (and extra checkdigit character, ‘a’) ```sierra_view.record_type_code || sierra_view.record_number || ‘a’```
