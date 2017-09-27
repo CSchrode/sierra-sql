@@ -3,7 +3,7 @@
 DROP TABLE IF EXISTS temp_call_groups;
 CREATE TEMP TABLE temp_call_groups (
 id SERIAL NOT NULL,
-group_value VARCHAR(10),
+group_value VARCHAR(12),
 group_name VARCHAR(512)
 );
 
@@ -19,6 +19,7 @@ INSERT INTO temp_call_groups (group_value, group_name) VALUES
 ('800', 'Literature'),
 ('900', 'History & geography'),
 ('fiction', 'PLCH fiction'),
+('m','PLCH music score'),
 ('easy', 'PLCH easy'),
 ('other', 'PLCH other'),
 ('', 'PLCH none')
@@ -39,7 +40,7 @@ SELECT
 		-- groups where 3 or more numbers in a row (dewey)
 		-- words "fiction", "easy", or "other" appear anywhere in the string
 		-- two or more letters appear in succession
-		'((^[0-9]{3})|(fiction.*)|(easy.*)|(other.*)|([a-z]{2,}))', 
+		'((^[0-9]{3})|(^m.*)|(fiction.*)|(easy.*)|(other.*)|([a-z]{2,}))', 
 		'gi'
 	) AS call_number
 	
@@ -76,11 +77,11 @@ WHERE
 t.op_code = 'o'
 
 -- item type is book (0) or music score (157)
--- AND i.itype_code_num IN (0,157)
+AND i.itype_code_num IN (0,157)
 
 -- item type is Juvenile Books (2, 22, 159)
 -- item type is Teen Books (4, 24)
-AND i.itype_code_num IN (2, 22, 159, 4, 24)
+-- AND i.itype_code_num IN (2, 22, 159, 4, 24)
 
 -- from all Main locations
 -- to get an updated list check here ...
@@ -128,6 +129,7 @@ FULL OUTER JOIN
 	SELECT 
 	CASE 	
 		WHEN m.call_class ~ '^[0-9]{3}' THEN substring(m.call_class from 1 for 1) || '00'
+		WHEN m.call_class ~* '^m[0-9]{1}.*' THEN lower(substring(m.call_class from 1 for 1))
 		ELSE lower(m.call_class)
 	END as class,
 	SUM(m.count)
