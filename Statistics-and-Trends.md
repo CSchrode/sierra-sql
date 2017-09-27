@@ -1,4 +1,4 @@
-# Circulations from main branch (work in progress)
+# Last Week's Circulations from main branch, grouped by call number class (work in progress)
 ```sql
 DROP TABLE IF EXISTS temp_call_groups;
 CREATE TEMP TABLE temp_call_groups (
@@ -30,7 +30,7 @@ INSERT INTO temp_call_groups (group_value, group_name) VALUES
 DROP TABLE IF EXISTS temp_circs_from_main;
 CREATE TEMP TABLE temp_circs_from_main AS
 SELECT
-
+extract (year from t.transaction_gmt) || 'W' || extract(week from t.transaction_gmt) as transaction_week,
 (
 	SELECT
 -- 	v.field_content as callnumber
@@ -73,8 +73,11 @@ ON
   l.item_record_id = i.record_id
 
 WHERE
+-- transactions from last week
+extract(week from t.transaction_gmt) = extract (week from (NOW() - interval '1 week'))
+
 -- type of transaction is checkout 'o'
-t.op_code = 'o'
+AND t.op_code = 'o'
 
 -- item type is book (0) or music score (157)
 AND i.itype_code_num IN (0,157)
@@ -107,11 +110,16 @@ AND t.stat_group_code_num IN (
 )
 
 GROUP BY
-call_class;
+call_class,
+transaction_week;
 
 -- FULL OUTER JOIN two temp tables to get all values to our final counts
 
 SELECT 
+(
+	SELECT
+	extract(year from NOW()) || 'W' || extract(week from (NOW() - interval '1 week'))
+) as transaction_week,
 * 
 
 FROM 
@@ -145,6 +153,11 @@ ON t2.class = t1.group_value
 ORDER BY
 t1.group_value,
 t2.class
+
+
+
+
+
 ```
 
 
