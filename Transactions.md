@@ -76,6 +76,68 @@ c.id DESC
 limit 1000;
 ```
 
+## Group circulation transactions by day, hour, application name, stat group name and operation type
+```sql
+SELECT
+date_trunc('day', c.transaction_gmt) as day,
+EXTRACT(HOUR FROM c.transaction_gmt) as hour,
+c.application_name,
+-- c.op_code,
+CASE 
+  WHEN c.op_code = 'o' THEN 'checkout'
+  WHEN c.op_code = 'i' THEN 'checkin'
+  WHEN c.op_code = 'n' THEN 'hold'
+  WHEN c.op_code = 'h' THEN 'hold w/ recall'
+  WHEN c.op_code = 'nb' THEN 'bib lv hold'
+  WHEN c.op_code = 'hb' THEN 'bib lv hold recall'
+  WHEN c.op_code = 'ni' THEN 'item lv hold'
+  WHEN c.op_code = 'hi' THEN 'item lv hold recall'
+  WHEN c.op_code = 'nv' THEN 'vol lv hold'
+  WHEN c.op_code = 'hv' THEN 'vol lv hold recall'
+  WHEN c.op_code = 'f' THEN 'filled hold'
+  WHEN c.op_code = 'r' THEN 'renewal'
+  WHEN c.op_code = 'b' THEN 'booking'
+  WHEN c.op_code = 'u' THEN 'use count'
+END AS op_code_type,
+n.name as stat_group_name,
+count(*)
+-- c.stat_group_code_num,
+
+FROM
+sierra_view.circ_trans	as c
+
+-- link stat_group_code_num to name
+JOIN
+sierra_view.statistic_group as g
+ON
+  g.code_num = c.stat_group_code_num
+
+JOIN
+sierra_view.statistic_group_name as n
+ON
+  n.statistic_group_id = g.id
+
+-- we can limit by application or stat_group_name here ...
+-- WHERE
+-- c.application_name = 'selfcheck'
+
+GROUP BY 
+day,
+hour,
+c.application_name,
+stat_group_name,
+op_code_type
+
+ORDER BY
+day,
+hour,
+c.application_name,
+op_code_type
+```
+
+
+
+
 ## Count transactions per hour + application name + op type + stat group name
 ```sql
 SELECT
