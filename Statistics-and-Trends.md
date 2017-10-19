@@ -166,6 +166,7 @@ temp_combined_pub_years (publish_year)
 );
 --
 
+DROP TABLE IF EXISTS temp_combined_pub_years_unique;
 CREATE TEMP TABLE temp_combined_pub_years_unique AS
 SELECT
 t.publish_year
@@ -193,7 +194,7 @@ ON
 LEFT OUTER JOIN
 temp_old_circs_at_main as oc
 ON
-  oc.publish_year = t.publish_year;
+  oc.publish_year = t.publish_year
 ```
 
 # Last Week's Circulations from main branch, grouped by call number class (work in progress)
