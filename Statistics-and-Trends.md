@@ -1,3 +1,201 @@
+# "Long Tail" - Items from main that have not circulated, or have only circulated more than 2 years ago, grouped by publication year -- combined with the inverse of that ... items that have circulated <= 2 years ago
+```sql
+drop table if exists temp_circs_at_main;
+drop table if exists temp_old_circs_at_main;
+
+
+CREATE TEMP TABLE temp_circs_at_main AS
+SELECT
+p.publish_year,
+count(i.record_id) as count
+
+FROM
+sierra_view.item_record as i
+
+JOIN
+sierra_view.bib_record_item_record_link as l
+ON
+  l.item_record_id = i.record_id
+
+JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = l.bib_record_id
+
+LEFT OUTER JOIN
+sierra_view.checkout as c
+ON
+  c.item_record_id = i.record_id
+  
+WHERE
+-- item has not circulated in two year, or circulated at all
+(
+	age(NOW()::timestamp, i.last_checkin_gmt::timestamp) <= INTERVAL '2 years'
+-- 	OR i.last_checkin_gmt IS NULL
+)
+
+-- item is not currently checked out
+AND 
+c.item_record_id IS NULL
+
+-- item has a status of '-'
+AND i.item_status_code = '-'
+
+AND i.itype_code_num IN (0, 157)
+
+-- and is in locations starting with '2ra' or are in locations: '3ra', '2ea', '2ga', '2sa', '3aa', '3ha', '3la'
+AND i.location_code IN (
+	SELECT
+	l.code
+
+	FROM
+	sierra_view.location_myuser as l
+
+	WHERE
+	l.code ~* '^2ra.*'
+	OR LOWER(l.code) IN (
+		'3ra',
+		'2ea',
+		'2ga',
+		'2sa',
+		'3aa',
+		'3ha',
+		'3la'
+	)
+)
+
+GROUP BY
+p.publish_year;
+---
+
+
+CREATE TEMP TABLE temp_old_circs_at_main AS
+SELECT
+p.publish_year,
+count(i.record_id) as count
+
+FROM
+sierra_view.item_record as i
+
+JOIN
+sierra_view.bib_record_item_record_link as l
+ON
+  l.item_record_id = i.record_id
+
+JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = l.bib_record_id
+
+LEFT OUTER JOIN
+sierra_view.checkout as c
+ON
+  c.item_record_id = i.record_id
+  
+WHERE
+-- item has not circulated in two year, or circulated at all
+(
+	age(NOW()::timestamp, i.last_checkin_gmt::timestamp) > INTERVAL '2 years'
+	OR i.last_checkin_gmt IS NULL
+)
+
+-- item is not currently checked out
+AND 
+c.item_record_id IS NULL
+
+-- item has a status of '-'
+AND i.item_status_code = '-'
+
+AND i.itype_code_num IN (0, 157)
+
+-- and is in locations starting with '2ra' or are in locations: '3ra', '2ea', '2ga', '2sa', '3aa', '3ha', '3la'
+AND i.location_code IN (
+	SELECT
+	l.code
+
+	FROM
+	sierra_view.location_myuser as l
+
+	WHERE
+	l.code ~* '^2ra.*'
+	OR LOWER(l.code) IN (
+		'3ra',
+		'2ea',
+		'2ga',
+		'2sa',
+		'3aa',
+		'3ha',
+		'3la'
+	)
+)
+
+GROUP BY
+p.publish_year;
+---
+
+
+-- SELECT * from temp_old_circs_at_main;
+-- SELECT * from temp_circs_at_main;
+
+
+DROP TABLE IF EXISTS temp_combined_pub_years;
+
+CREATE TEMP TABLE temp_combined_pub_years (
+id SERIAL NOT NULL,
+publish_year INTEGER
+);
+
+INSERT INTO 
+temp_combined_pub_years (publish_year)
+
+SELECT
+o.publish_year
+
+FROM
+temp_old_circs_at_main as o;
+---
+
+INSERT INTO 
+temp_combined_pub_years (publish_year)
+(
+	SELECT
+	o.publish_year
+
+	FROM
+	temp_circs_at_main as o
+);
+--
+
+CREATE TEMP TABLE temp_combined_pub_years_unique AS
+SELECT
+t.publish_year
+
+FROM
+temp_combined_pub_years as t
+
+GROUP BY
+t.publish_year;
+---
+
+SELECT
+t.publish_year,
+c.count as recent_circs,
+oc.count as old_and_non_circs
+
+FROM
+temp_combined_pub_years_unique as t
+
+LEFT OUTER JOIN
+temp_circs_at_main as c
+ON
+  c.publish_year = t.publish_year
+
+LEFT OUTER JOIN
+temp_old_circs_at_main as oc
+ON
+  oc.publish_year = t.publish_year;
+```
+
 # Last Week's Circulations from main branch, grouped by call number class (work in progress)
 ```sql
 DROP TABLE IF EXISTS temp_call_groups;
