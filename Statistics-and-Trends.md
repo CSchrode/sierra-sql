@@ -1,4 +1,138 @@
-# "Long Tail" - Items from main that have not circulated, or have only circulated more than 2 years ago, grouped by publication year -- combined with the inverse of that ... items that have circulated <= 2 years ago
+# Items From Main "Long Tail"
+Counts of items from main (grouped by publication year) that have not circulated, have circulated more than 2 years ago, or have more recently circulated (less than or equal to 2 years ago).
+```sql
+DROP TABLE IF EXISTS temp_all_items_at_main;
+
+CREATE TEMP TABLE temp_all_items_at_main AS
+SELECT
+i.record_id,
+p.publish_year,
+i.last_checkin_gmt,
+c.id as checkout_id
+
+FROM
+sierra_view.item_record as i
+
+JOIN
+sierra_view.bib_record_item_record_link as l
+ON
+  l.item_record_id = i.record_id
+
+JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = l.bib_record_id
+
+LEFT OUTER JOIN
+sierra_view.checkout as c
+ON
+  c.item_record_id = i.record_id
+  
+WHERE
+
+i.item_status_code IN (
+'-',
+'t',
+'!',
+'@'
+)
+
+AND i.itype_code_num IN (0, 157)
+
+-- and is in locations starting with '2ra' or are in locations: '3ra', '2ea', '2ga', '2sa', '3aa', '3ha', '3la'
+AND i.location_code IN (
+	SELECT
+	l.code
+
+	FROM
+	sierra_view.location_myuser as l
+
+	WHERE
+	l.code ~* '^2ra.*'
+	OR LOWER(l.code) IN (
+		'3ra',
+		'2ea',
+		'2ga',
+		'2sa',
+		'3aa',
+		'3ha',
+		'3la'
+	)
+);
+---
+
+CREATE INDEX ON temp_all_items_at_main (publish_year);
+CREATE INDEX ON temp_all_items_at_main (last_checkin_gmt);
+
+SELECT
+m.publish_year,
+(
+	SELECT
+	count(mt.record_id)
+
+	FROM
+	temp_all_items_at_main AS mt
+
+	WHERE
+	mt.publish_year = m.publish_year
+	
+) AS count_total,
+
+(
+	SELECT
+	count(mn.record_id)
+
+	FROM
+	temp_all_items_at_main AS mn
+
+	WHERE
+	mn.publish_year = m.publish_year
+	AND mn.last_checkin_gmt IS NULL
+	
+) AS count_no_circ,
+
+(
+	SELECT
+	count(mg.record_id)
+
+	FROM
+	temp_all_items_at_main AS mg
+
+	WHERE
+	mg.publish_year = m.publish_year
+	AND age(NOW()::timestamp, mg.last_checkin_gmt::timestamp) > INTERVAL '2 years'
+	
+) AS count_circ_gt_2yr,
+
+(
+	SELECT
+	count(ml.record_id)
+
+	FROM
+	temp_all_items_at_main AS ml
+
+	WHERE
+	ml.publish_year = m.publish_year
+	AND age(NOW()::timestamp, ml.last_checkin_gmt::timestamp) <= INTERVAL '2 years'
+	
+) AS count_circ_lt_eq_2yr
+
+
+FROM
+temp_all_items_at_main AS m
+
+GROUP BY
+m.publish_year
+
+ORDER BY
+m.publish_year
+
+```
+
+
+# OLD Items From Main "Long Tail"
+
+Items from main that have not circulated, or have only circulated more than 2 years ago, grouped by publication year -- combined with the inverse of that ... items that have circulated <= 2 years ago
 ```sql
 drop table if exists temp_circs_at_main;
 drop table if exists temp_old_circs_at_main;
