@@ -1,3 +1,79 @@
+# More granular "Claimed returned" search / report
+```sql
+DROP TABLE IF EXISTS temp_claims_returned;
+--
+
+
+CREATE TEMP TABLE temp_claims_returned AS
+
+SELECT
+r.record_type_code || r.record_num || 'a' as item_record_num,
+(
+	SELECT
+	string_agg(v.field_content, ',' order by v.occ_num)
+
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	v.record_id = r.id
+	AND v.varfield_type_code = 'b'
+) AS item_barcodes,
+substring(v.field_content, '^.{15}')::date as claimed_date,
+v.record_id,
+v.field_content
+
+FROM
+sierra_view.varfield as v
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  (r.id = v.record_id)
+
+WHERE
+v.varfield_type_code = 'x'
+AND v.marc_tag is null
+AND v.field_content ~ '^.{17}Claimed returned'
+AND r.record_type_code = 'i'
+;
+---
+
+
+ANALYSE temp_claims_returned;
+---
+
+
+-- produce our results
+SELECT
+*
+
+FROM
+temp_claims_returned as c
+
+WHERE
+c.claimed_date >= ( (DATE_TRUNC('month', NOW()) - INTERVAL '5 years 1 month') )::date -- first day of 5 years and 1 month ago
+AND c.claimed_date < ( (DATE_TRUNC('month', NOW())) - INTERVAL '5 years' )::date -- last day of 5 years and 1 month ago
+;
+---
+
+
+-- -- get the count of claims returned from each year
+-- SELECT
+-- extract(year from c.claimed_date) AS claimed_year,
+-- count(*)
+-- 
+-- FROM
+-- temp_claims_returned as c
+-- 
+-- GROUP BY
+-- claimed_year
+-- 
+-- ORDER BY
+-- claimed_year
+
+```
+
 
 # Find cases where an item record is linked to more than one bib record (improved)
 ```sql
