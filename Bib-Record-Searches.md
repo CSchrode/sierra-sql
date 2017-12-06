@@ -1,3 +1,89 @@
+### Find Bib records where only one item is attached, the item is available, not checked out, and is not part of specific locations.
+```sql
+-- create a temp table with the bibs having one item record
+DROP TABLE IF EXISTS temp_bibs_one_item;
+CREATE TEMP TABLE temp_bibs_one_item AS
+SELECT
+l.bib_record_id
+
+FROM
+sierra_view.bib_record_item_record_link as l
+
+GROUP BY
+l.bib_record_id
+
+HAVING
+count(l.bib_record_id) = 1
+;
+---
+
+
+---
+-- remove the bib ids from the temp table that are not our bib records
+DELETE 
+
+FROM
+temp_bibs_one_item as b
+
+WHERE
+b.bib_record_id IN
+(
+	SELECT
+	b.bib_record_id
+
+	FROM
+	temp_bibs_one_item as b
+	
+	JOIN
+	sierra_view.record_metadata as r
+	ON
+	  b.bib_record_id = r.id
+
+	WHERE
+	r.campus_code != ''
+)
+;
+---
+
+
+---
+-- search the bibs attached item and see if it has a status of '-' and is not checked out
+SELECT
+r.record_type_code || r.record_num || 'a' as record_num
+
+FROM
+sierra_view.bib_record_item_record_link as l1
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = l1.bib_record_id
+
+JOIN
+sierra_view.item_record as i
+ON
+  i.record_id = l1.item_record_id
+
+LEFT OUTER JOIN
+sierra_view.checkout as c
+ON
+  c.item_record_id = l1.item_record_id
+
+WHERE
+i.item_status_code = '-' -- item status code available
+AND i.location_code NOT IN ('vidow') -- put a comma seperated list of location codes to exclude here ...
+AND c.id IS NULL -- item doesn't have a checkout associated with it, and therefore not checked out
+AND l1.bib_record_id IN (
+	SELECT
+	b.bib_record_id
+	
+	FROM
+	temp_bibs_one_item as b
+);
+```
+
+
+
 ## Find bib records where all attached items are suppressed
 ```sql
 SELECT
