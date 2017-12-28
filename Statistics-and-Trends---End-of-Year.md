@@ -41,13 +41,6 @@ ON
   l.item_record_id = i.record_id
 
 WHERE
---Call Number:
---AND sierra_view.varfield.record_id = sierra_view.bib_view.id 
---AND sierra_view.varfield.record_type_code = 'b' 
---AND sierra_view.varfield.varfield_type_code = 'c' 
---AND field_content ~* '.*fiction.*'  --Fiction
---AND field_content ~ '^\|a(?:\d\d|M)\d'  --Non-fiction
- 
 --Item Type: 
 -- un-comment for specific output
 --AND i.itype_code_num NOT IN ( 30, 31, 32, 33, 34, 35, 37, 136 )  --Overall (no magazines)
@@ -95,8 +88,7 @@ SELECT
 t.sum_checkouts_ytd,
 p.best_title,
 r.record_num,
-null as null,
-*
+'https://catalog.cincinnatilibrary.org/iii/encore/record/C__Rb' || r.record_num as URL
 
 FROM
 temp_checkouts_ytd as t
@@ -112,12 +104,12 @@ ON
   p.bib_record_id = t.bib_record_id
 
 WHERE
--- t.call_number ~* '.*fiction.*' -- fiction
-t.call_number !~* '.*fiction.*' -- non fiction
+t.call_number ~* '.*fiction.*' -- fiction
+-- t.call_number !~* '.*fiction.*' -- non fiction
+
 
 ORDER BY
 t.sum_checkouts_ytd DESC
 
 limit 200
 ;
-```
