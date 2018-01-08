@@ -1,3 +1,78 @@
+# Holds for a title over a time interval
+```sql
+-- grab the transaction data for the title we want to look at
+DROP TABLE IF EXISTS temp_holds_data;
+CREATE TEMP TABLE temp_holds_data AS
+SELECT
+c.*
+
+FROM
+sierra_view.record_metadata as r
+
+JOIN
+sierra_view.bib_record as b
+ON
+  b.record_id = r.id
+
+JOIN
+sierra_view.circ_trans as c
+ON
+  c.bib_record_id = r.id
+
+WHERE
+r.record_num = 3325533
+AND c.op_code = 'nb';
+--
+
+
+-- create the table for the intervals we'll look at data for
+DROP TABLE IF EXISTS temp_date_ranges;
+CREATE TEMP TABLE temp_date_ranges AS
+SELECT
+*
+FROM
+generate_series((
+	-- start series
+	SELECT
+	date_trunc('hour', MIN(t.transaction_gmt)::timestamp)
+	FROM
+	temp_holds_data as t
+	),
+	-- end series
+	(
+	SELECT
+	date_trunc('hour', MAX(t.transaction_gmt)::timestamp)
+	FROM
+	temp_holds_data as t
+	),
+	-- set a reasonable interval here ... maybe think about using a computed value if automating this
+	'2 hours'  
+) as date_target;
+--
+
+
+-- select our interval date target, and count the holds placed until that interval
+SELECT
+t.date_target,
+(
+	SELECT
+	COUNT(*)
+
+	FROM
+	temp_holds_data as t1
+
+	WHERE
+	t1.transaction_gmt::timestamp <= t.date_target::timestamp
+)
+
+FROM
+temp_date_ranges as t
+
+ORDER BY
+t.date_target ASC;
+```
+
+
 # Circulations from Main Grouped by Call Number (in 100 Dewey groups)
 
 ```sql
