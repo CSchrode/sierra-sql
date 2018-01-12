@@ -1,3 +1,90 @@
+### Find ISBNs existing in the ILS from a list provided.
+```sql
+DROP TABLE IF EXISTS temp_search_isbns;
+CREATE TEMP TABLE temp_search_isbns (
+	id SERIAL NOT NULL,
+	isbn VARCHAR(30)
+);
+---
+
+
+-- here we insert the ISBNs we want to search on. This list can be produced my importing a .csv file, and 
+-- replacing \n (newline characters with '\')\n(\'' values to get the input into the format like the example below
+INSERT INTO temp_search_isbns (isbn) VALUES
+('076141102X'),
+('9781683900962'),
+('1683900960'),
+('9780531268360'),
+('9780553213119');
+
+CREATE INDEX index_isbn ON temp_search_isbns (isbn);
+---
+
+
+DROP TABLE IF EXISTS temp_isbn;
+CREATE TEMP TABLE temp_isbn AS
+SELECT
+v.id,
+(
+	-- performing subquery so that we can return one result for our extracted isbn
+	SELECT
+	regexp_matches(
+		--regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'ig'), -- get the call number strip the subfield indicators
+		v.field_content,
+		'[0-9]{9,10}[X]{0,1}|[0-9]{12,13}[x]{0,1}' -- the regex to match on (10 or 13 digits, with the possibility of the 'X' character in the check-digit spot)
+		-- 'i' -- regex flags, ignore case
+	)
+	FROM
+	sierra_view.varfield as v1
+
+	WHERE
+	v1.record_id = v.record_id
+
+	LIMIT 1
+)[1]::varchar(30) as isbn_extracted,
+v.field_content, -- selecting this so we can spot check our extracted number against the field contents 
+v.record_id 
+
+FROM
+sierra_view.varfield as v
+
+WHERE
+v.marc_tag || v.varfield_type_code = '020i' -- indexed as isbn and comes from the marc 020 field
+;
+---
+
+
+-- add an index on the isbn number so we can more quicky match on it.
+CREATE INDEX index_isbn_extracted ON temp_isbn (isbn_extracted);
+---
+
+
+-- run our search!
+SELECT
+*
+FROM
+temp_search_isbns as s
+
+LEFT OUTER JOIN
+temp_isbn as t
+ON
+  s.isbn = t.isbn_extracted
+
+LEFT OUTER JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = t.record_id
+
+LEFT OUTER JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = r.id
+;
+---
+```
+
+
+
 ### Find Bib records where only one item is attached, the item is available, not checked out, and is not part of specific locations.
 ```sql
 -- create a temp table with the bibs having one item record
