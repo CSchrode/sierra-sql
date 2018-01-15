@@ -15,7 +15,8 @@ INSERT INTO temp_search_isbns (isbn) VALUES
 ('9781683900962'),
 ('1683900960'),
 ('9780531268360'),
-('9780553213119');
+('9780553213119'),
+('085478473X');
 
 CREATE INDEX index_isbn ON temp_search_isbns (isbn);
 ---
@@ -31,8 +32,8 @@ v.id,
 	regexp_matches(
 		--regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'ig'), -- get the call number strip the subfield indicators
 		v.field_content,
-		'[0-9]{9,10}[X]{0,1}|[0-9]{12,13}[x]{0,1}' -- the regex to match on (10 or 13 digits, with the possibility of the 'X' character in the check-digit spot)
-		-- 'i' -- regex flags, ignore case
+		'[0-9]{9,10}[x]{0,1}|[0-9]{12,13}[x]{0,1}', -- the regex to match on (10 or 13 digits, with the possibility of the 'X' character in the check-digit spot)
+		'i' -- regex flags; ignore case
 	)
 	FROM
 	sierra_view.varfield as v1
@@ -68,7 +69,7 @@ temp_search_isbns as s
 LEFT OUTER JOIN
 temp_isbn as t
 ON
-  s.isbn = t.isbn_extracted
+  LOWER(s.isbn) = LOWER(t.isbn_extracted) -- make sure that the check digit 'x' is matched despite case
 
 LEFT OUTER JOIN
 sierra_view.record_metadata as r
@@ -81,6 +82,7 @@ ON
   p.bib_record_id = r.id
 ;
 ---
+
 ```
 
 
