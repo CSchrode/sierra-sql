@@ -56,7 +56,7 @@ sierra_view.record_metadata as rb
 ON
   (rb.id = l.bib_record_id) AND (rb.campus_code = '')
 
--- PUT YOUR 
+-- PUT YOUR itype_code_num HERE
 WHERE
 i.itype_code_num = '199'
 ;
