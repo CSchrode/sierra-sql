@@ -57,6 +57,7 @@ c.transaction_gmt DESC
 
 ## item barcode
 ```sql
+-- put the item barcode in at the WHERE clause below
 SELECT
 c.transaction_gmt,
 e.index_entry as item_barcode,
@@ -91,6 +92,7 @@ ON
   e.record_id = c.item_record_id
 
 WHERE
+-- put the item barcode in at the end ...
 e.index_tag || e.index_entry = 'b' || '0989053860015'
 
 ORDER BY 
