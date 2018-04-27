@@ -1,5 +1,88 @@
 # Fines
 
+# Fines paid by date
+```sql
+SELECT
+f.fine_assessed_date_gmt::date as "Date Assessed",
+-- n.last_name || ', ' || n.first_name || ' ' || n.middle_name as "Patron Name",
+n.last_name || ', ' ||n.first_name || COALESCE(' ' || NULLIF(n.middle_name, ''), '') AS "Patron Name",
+r.record_num as "Patron Record",
+null as "Patron Unique ID",
+f.invoice_num as "Invoice",
+-- f.old_invoice_num,
+cast(f.item_charge_amt as money) as "Charge Amt.",
+cast(f.processing_fee_amt as money) as "Processing Fee",
+
+CASE 
+  WHEN f.charge_type_code = '1' THEN 'manual charge'
+  WHEN f.charge_type_code = '2' THEN 'overdue'
+  WHEN f.charge_type_code = '3' THEN 'replacement'
+  WHEN f.charge_type_code = '4' THEN 'adjustment (OVERDUEX)'
+  WHEN f.charge_type_code = '5' THEN 'lost book'
+  WHEN f.charge_type_code = '6' THEN 'overdue renewed'
+  WHEN f.charge_type_code = '7' THEN 'rental'
+  WHEN f.charge_type_code = '8' THEN 'rental adjustment (RENTALX)'
+  WHEN f.charge_type_code = '9' THEN 'debit'
+  WHEN f.charge_type_code = 'a' THEN 'notice'
+  WHEN f.charge_type_code = 'b' THEN 'credit card'
+  WHEN f.charge_type_code = 'p' THEN 'program (i.e., Program Registration)'  
+  ELSE null
+END AS "Charge Type",
+
+-- null as "Owning Location", -- is this just the item location code? not sure how that works with floating
+f.charge_location_code as "Owning Location",
+
+f.paid_date_gmt::date as "Date Paid",
+f.tty_num as "Statistics Group",
+cast(f.last_paid_amt as money) as "Last Payment",
+-- null as "Login", -- not sure where this is coming from either
+f.iii_user_name as "Login",
+CASE
+  WHEN f.fine_creation_mode_code = 'a' THEN 'automatic'
+  WHEN f.fine_creation_mode_code = 'm' THEN 'manual'
+  WHEN f.fine_creation_mode_code = 'x' THEN 'adjustment'
+  ELSE null
+END as "Creation Mode",
+f.description as "Description",
+cast(f.paid_now_amt as money) as "Amount Paid",
+
+CASE
+  WHEN f.payment_status_code = '0' THEN 'no payment'
+  WHEN f.payment_status_code = '1' THEN 'full payment'
+  WHEN f.payment_status_code = '2' THEN 'partial payment'
+  WHEN f.payment_status_code = '3' THEN 'waive'
+  WHEN f.payment_status_code = '4' THEN 'item busy'
+  WHEN f.payment_status_code = '5' THEN 'will pay'
+  WHEN f.payment_status_code = '6' THEN 'purge'
+  WHEN f.payment_status_code = '7' THEN 'credit'
+  WHEN f.payment_status_code = '8' THEN 'adjustment'
+  ELSE null
+END as "Payment Status",
+f.payment_type_code as "Payment Type",
+f.payment_note as "Payment Note"
+
+FROM
+sierra_view.fines_paid as f
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = f.patron_record_metadata_id
+
+LEFT OUTER JOIN
+sierra_view.patron_record_fullname as n
+ON
+  n.patron_record_id = f.patron_record_metadata_id
+
+WHERE
+f.paid_date_gmt::date = '2018-03-23'::date
+
+ORDER BY 
+f.patron_record_metadata_id,
+f.paid_date_gmt
+```
+
+
 # Post fines purge report for statute of limitations fines
 ```sql
 DROP TABLE IF EXISTS temp_patron_purge_amts;
