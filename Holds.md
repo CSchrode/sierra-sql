@@ -605,3 +605,104 @@ AND h.is_frozen = false
 ORDER BY
 days_active DESC
 ```
+
+## Get bib information from holds that are INN-Reach or ILL
+```sql
+-----
+-- this query will get bib information from holds that are INN-Reach or ILL 
+-----
+
+DROP TABLE IF EXISTS temp_holds_data;
+CREATE TEMP TABLE temp_holds_data AS
+SELECT
+p.ptype_code,
+p.home_library_code as patron_home_library_code,
+n.last_name || ', ' ||n.first_name || COALESCE(' ' || NULLIF(n.middle_name, ''), '') AS "patron_name",
+r.record_type_code || r.record_num as record_num,
+
+-- get the bib record id from holds (which can be item-level, volume-level, or bib-level)
+CASE
+	WHEN r.record_type_code = 'i' THEN (
+		SELECT
+		l.bib_record_id
+
+		FROM
+		sierra_view.bib_record_item_record_link as l
+
+		WHERE
+		l.item_record_id = h.record_id
+
+		LIMIT 1
+	)
+
+	WHEN r.record_type_code = 'j' THEN (
+		SELECT
+		l.bib_record_id
+
+		FROM
+		sierra_view.bib_record_volume_record_link as l
+
+		WHERE
+		l.volume_record_id = h.record_id
+
+		LIMIT 1
+	)
+
+	WHEN r.record_type_code = 'b' THEN (
+		h.record_id
+	)
+
+	ELSE NULL
+END as bib_record_id,
+
+CASE
+	WHEN h.status = '0' THEN 'On hold'
+	WHEN h.status = 'b' THEN 'Bib hold ready for pickup.'
+	WHEN h.status = 'j' THEN 'Volume hold ready for pickup.'
+	WHEN h.status = 'i' THEN 'Item hold ready for pickup.'
+	WHEN h.status = 't' THEN 'Bib, item, or volume in transit to pickup location.'
+END as hold_status,
+
+h.*
+
+FROM
+sierra_view.hold as h
+
+LEFT OUTER JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = h.record_id
+
+LEFT OUTER JOIN
+sierra_view.patron_record as p
+ON
+  p.record_id = h.patron_record_id
+
+LEFT OUTER JOIN
+sierra_view.patron_record_fullname as n
+ON
+  n.patron_record_id = h.patron_record_id
+
+WHERE
+-- uncomment / comment out here to limit to INN-Reach / ILL holds 
+(	is_ir IS true
+	OR is_ill IS true
+)
+;
+-----
+
+-----
+SELECT 
+p.best_title,
+p.publish_year,
+t.*
+
+FROM 
+temp_holds_data as t
+
+JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = t.bib_record_id
+```
+
