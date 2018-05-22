@@ -609,11 +609,10 @@ days_active DESC
 ## Get bib information from holds that are INN-Reach or ILL
 ```sql
 -----
--- this query will get bib information from holds that are INN-Reach or ILL 
------
 
------
--- this query will get bib information from holds that are INN-Reach or ILL 
+-- this query will get hold, bib, and item information from holds that are 
+-- INN-Reach or ILL 
+
 -----
 
 DROP TABLE IF EXISTS temp_holds_data;
