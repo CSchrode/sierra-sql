@@ -612,6 +612,10 @@ days_active DESC
 -- this query will get bib information from holds that are INN-Reach or ILL 
 -----
 
+-----
+-- this query will get bib information from holds that are INN-Reach or ILL 
+-----
+
 DROP TABLE IF EXISTS temp_holds_data;
 CREATE TEMP TABLE temp_holds_data AS
 SELECT
@@ -619,6 +623,42 @@ p.ptype_code,
 p.home_library_code as patron_home_library_code,
 n.last_name || ', ' ||n.first_name || COALESCE(' ' || NULLIF(n.middle_name, ''), '') AS "patron_name",
 r.record_type_code || r.record_num as record_num,
+
+CASE
+	WHEN r.record_type_code = 'i' THEN (
+		SELECT
+		-- i.item_status_code
+		CASE
+			WHEN i.item_status_code = '-' THEN 'AVAILABLE'
+			WHEN i.item_status_code = 'm' THEN 'MISSING'
+			WHEN i.item_status_code = 'z' THEN 'CL RETURNED'
+			WHEN i.item_status_code = 'o' THEN 'LIB USE ONLY'
+			WHEN i.item_status_code = 'n' THEN 'BILLED NOTPAID'
+			WHEN i.item_status_code = '$' THEN 'BILLED PAID'
+			WHEN i.item_status_code = 't' THEN 'IN TRANSIT'
+			WHEN i.item_status_code = '!' THEN 'ON HOLDSHELF'
+			WHEN i.item_status_code = 'l' THEN 'LOST'
+			-- At INN-Reach sites, the following additional codes and definitions are standard:
+			WHEN i.item_status_code = '@' THEN 'OFF SITE'
+			WHEN i.item_status_code = '#' THEN 'RECEIVED'
+			WHEN i.item_status_code = '%' THEN 'RETURNED'
+			WHEN i.item_status_code = '&' THEN 'REQUEST'
+			WHEN i.item_status_code = '_' THEN 'REREQUEST'
+			WHEN i.item_status_code = '(' THEN 'PAGED'
+			WHEN i.item_status_code = ')' THEN 'CANCELLED'
+			WHEN i.item_status_code = '1' THEN 'LOAN REQUESTED'
+			ELSE i.item_status_code
+		END
+		FROM
+		sierra_view.item_record as i
+
+		WHERE
+		i.record_id = r.id
+
+		LIMIT 1
+	)
+	ELSE NULL
+END as item_record_status,
 
 -- get the bib record id from holds (which can be item-level, volume-level, or bib-level)
 CASE
