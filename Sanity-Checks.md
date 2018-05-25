@@ -27,12 +27,13 @@ r.record_num,
 l.bib_record_id
 
 HAVING
-count(l.bib_record_id) > 2;
+count(l.bib_record_id) > 1;
 ---
 
-
+-- this should return 0 rows of data
 SELECT
-*
+b.id,
+l.id
 
 FROM
 temp_bibs_multi_loc as b
@@ -45,8 +46,13 @@ ON
 	AND l.location_code = 'multi'
   )
 
-WHERE
-l.id IS null;
+GROUP BY
+b.id,
+l.id
+
+HAVING
+l.id IS null
+
 ---
 
 
@@ -57,5 +63,4 @@ l.id IS null;
 -- 
 -- FROM
 -- temp_bibs_multi_loc
-
 ```
