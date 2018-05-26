@@ -1,3 +1,44 @@
+Find bib records with more than 1 attached item record
+```sql
+﻿DROP TABLE IF EXISTS temp_bib_records;
+CREATE TEMP TABLE temp_bib_records AS
+SELECT
+l.bib_record_id,
+count(l.bib_record_id) as count_linked_items
+
+FROM
+sierra_view.bib_record_item_record_link as l
+
+GROUP BY
+l.bib_record_id
+
+HAVING
+count(l.bib_record_id) > 1;
+---
+3
+
+CREATE INDEX index_bib_record_id ON temp_bib_records (bib_record_id);
+---
+
+
+-- now we can do joins on our temp table to get what we need out of it ...
+SELECT
+*
+
+FROM
+temp_bib_records as t
+
+JOIN
+sierra_view.bib_record as b
+ON
+  b.record_id = t.bib_record_id
+
+LIMIT 100;
+---
+```
+
+
+
 ### Find ISBNs existing in the ILS from a list provided.
 ```sql
 DROP TABLE IF EXISTS temp_search_isbns;
