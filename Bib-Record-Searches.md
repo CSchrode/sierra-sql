@@ -39,6 +39,50 @@ LIMIT 100;
 
 
 
+### Find bib records with more than 1 attached item record, including the location code count of items
+```sql
+DROP TABLE IF EXISTS temp_item_record_location_count;
+CREATE TEMP TABLE temp_item_record_location_count AS
+SELECT
+l.bib_record_id,
+i.location_code,
+count(i.location_code) as count_by_location_code
+
+FROM
+sierra_view.bib_record_item_record_link as l
+
+JOIN
+sierra_view.item_record as i
+ON
+  i.record_id = l.item_record_id
+
+GROUP BY
+l.bib_record_id,
+i.location_code
+
+HAVING
+count(i.location_code) > 1;
+---
+
+
+CREATE INDEX index_location_code on temp_item_record_location_count (location_code);
+CREATE INDEX index_bib_record_id on temp_item_record_location_count (bib_record_id);
+---
+
+
+-- now we can do our searches on the temp table by location code
+SELECT
+*
+FROM
+temp_item_record_location_count AS t
+
+WHERE
+t.location_code = '2ea'
+
+LIMIT 100
+```
+
+
 ### Find ISBNs existing in the ILS from a list provided.
 ```sql
 DROP TABLE IF EXISTS temp_search_isbns;
