@@ -1,4 +1,162 @@
-Find bib records with more than 1 attached item record
+## Bib Records With:
+* **a cataloging date**
+* **all attached items are suppressed**
+* **no holds on bib**
+* **no holds on attached items**
+* **no active orders** :
+   * (`order_record_status` not equal to `o`)
+
+```sql
+
+---
+-- Find bib records where all attached items are suppressed
+---
+DROP TABLE IF EXISTS temp_bibs_all_attached_suppressed;
+---
+CREATE TEMP TABLE temp_bibs_all_attached_suppressed AS
+SELECT
+l.bib_record_id
+-- r.record_type_code || r.record_num || 'a' as bib_record_num
+
+FROM
+sierra_view.bib_record_item_record_link as l
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = l.bib_record_id
+
+JOIN
+sierra_view.bib_record as b
+ON
+  b.record_id = l.bib_record_id
+
+LEFT OUTER JOIN
+sierra_view.bib_record_order_record_link as ol
+ON
+  ol.bib_record_id = l.bib_record_id
+
+LEFT OUTER JOIN
+sierra_view.order_record as o
+ON
+  o.record_id = ol.order_record_id
+
+WHERE
+b.cataloging_date_gmt IS NOT NULL
+AND b.is_suppressed IS FALSE
+AND o.order_status_code != 'o'
+AND l.bib_record_id NOT IN
+(
+	SELECT
+	l_one.bib_record_id
+
+	FROM
+	sierra_view.bib_record_item_record_link as l_one
+
+	JOIN
+	sierra_view.item_record as i_one
+	ON
+	  i_one.record_id = l_one.item_record_id
+	  AND i_one.is_suppressed IS FALSE
+
+	GROUP BY
+	l_one.bib_record_id
+)
+
+GROUP BY
+l.bib_record_id
+;
+---
+
+CREATE INDEX index_bib_record_id ON temp_bibs_all_attached_suppressed (bib_record_id);
+---
+
+
+-- Look for bib records that have holds, and remove them from the list
+DELETE FROM 
+temp_bibs_all_attached_suppressed
+
+WHERE
+bib_record_id IN (
+
+	SELECT
+	t.bib_record_id
+
+	FROM
+	temp_bibs_all_attached_suppressed as t
+
+	LEFT OUTER JOIN
+	sierra_view.hold as h
+	ON
+	  t.bib_record_id = h.record_id
+
+	WHERE
+	h.record_id IS NOT NULL
+);
+---
+
+
+-- Look for bib records that have attached items that have holds, and remove them from the list
+DELETE FROM 
+temp_bibs_all_attached_suppressed
+
+WHERE
+bib_record_id IN (
+
+	SELECT
+	t.bib_record_id
+
+	FROM
+	temp_bibs_all_attached_suppressed as t
+
+	JOIN
+	sierra_view.bib_record_item_record_link as l
+	ON
+	  l.bib_record_id = t.bib_record_id
+
+	LEFT OUTER JOIN
+	sierra_view.hold as h
+	ON
+	  l.item_record_id = h.record_id
+
+	WHERE
+	h.record_id IS NOT NULL
+
+	GROUP BY
+	t.bib_record_id
+);
+---
+
+
+SELECT
+r.record_type_code || r.record_num || 'a' as record_num,
+r.record_last_updated_gmt,
+p.bib_level_code,
+p.material_code,
+p.best_title,
+p.best_author,
+p.publish_year
+
+FROM
+temp_bibs_all_attached_suppressed as t
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = t.bib_record_id
+
+LEFT OUTER JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = t.bib_record_id
+
+ORDER BY
+r.record_last_updated_gmt
+```
+
+
+
+## Find bib records with more than 1 attached item record
 ```sql
 ﻿DROP TABLE IF EXISTS temp_bib_records;
 CREATE TEMP TABLE temp_bib_records AS
