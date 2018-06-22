@@ -1,3 +1,69 @@
+## Find Bib and Volume records with a cat date in the last week
+```sql
+-- example of grabbing bib and volume records with a cat date in the last week,
+-- and creating a temp table from the results for use with other query output
+-- (volume records don't have a cat date, so checking the linked bib)
+
+-- the example interval
+-- SELECT
+-- (NOW()::date - INTERVAL '1 week')::date AS week_ago,
+-- NOW()::date AS today
+
+DROP TABLE IF EXISTS temp_bib_vol_with_cat_date_today;
+
+CREATE TEMP TABLE temp_bib_vol_with_cat_date_today AS
+SELECT
+l.bib_record_id,
+l.volume_record_id,
+b.cataloging_date_gmt
+
+FROM
+sierra_view.bib_record_volume_record_link AS l
+
+JOIN
+sierra_view.bib_record AS b
+ON
+  b.record_id = l.bib_record_id
+
+WHERE
+b.cataloging_date_gmt::date BETWEEN 
+	(NOW()::date - INTERVAL '1 week')::date 
+	AND NOW()::date
+
+UNION 
+
+SELECT
+b.record_id,
+l.volume_record_id,
+b.cataloging_date_gmt
+
+FROM
+sierra_view.bib_record AS b
+
+LEFT OUTER JOIN
+sierra_view.bib_record_volume_record_link AS l
+ON
+  l.bib_record_id = b.record_id
+
+WHERE
+l.volume_record_id IS NULL
+AND b.cataloging_date_gmt::date BETWEEN 
+	(NOW()::date - INTERVAL '1 week')::date 
+	AND NOW()::date
+;
+---
+
+
+CREATE INDEX temp_bib_vol_with_cat_date_today_bib ON temp_bib_vol_with_cat_date_today (bib_record_id);
+CREATE INDEX temp_bib_vol_with_cat_date_today_vol ON temp_bib_vol_with_cat_date_today (volume_record_id);
+CREATE INDEX temp_bib_vol_with_cat_date_today_cat_date ON temp_bib_vol_with_cat_date_today (cataloging_date_gmt);
+
+-- sample query to test what we get back
+-- SELECT id2reckey(bib_record_id), * FROM temp_bib_vol_with_cat_date_today order by bib_record_id, volume_record_id, cataloging_date_gmt;
+```
+
+
+
 ## Bib Records With:
 * **a cataloging date**
 * **all attached items are suppressed**
