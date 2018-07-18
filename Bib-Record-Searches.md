@@ -1,3 +1,64 @@
+## Find titles with a cat date within the last 60 days
+```sql
+DROP TABLE IF EXISTS temp_new_titles;
+
+CREATE TEMP TABLE temp_new_titles AS
+SELECT
+r.id as bib_record_id,
+p.bib_level_code,
+p.material_code,
+p.best_title as title,
+p.best_author as author,
+r.creation_date_gmt::date as creation_date,
+r.record_type_code || r.record_num || 'a' as record_num,
+'http://catalog.cincinnatilibrary.org/iii/encore/record/C__R' 
+	|| r.record_type_code
+	|| r.record_num AS encore_link,
+b.cataloging_date_gmt::date as cat_date,
+p.best_title_norm as title_norm,
+p.publish_year
+
+
+FROM
+sierra_view.record_metadata as r
+
+JOIN
+sierra_view.bib_record as b
+ON
+  b.record_id = r.id
+
+JOIN
+sierra_view.bib_record_property as p
+ON
+  p.bib_record_id = r.id
+
+WHERE
+r.record_type_code || r.campus_code = 'b'
+AND r.deletion_date_gmt IS NULL
+AND b.is_suppressed IS FALSE
+AND age(b.cataloging_date_gmt) <= '60 days'::INTERVAL
+;
+
+CREATE INDEX sort_temp_new_titles ON temp_new_titles (bib_level_code, cat_date, title_norm)
+;
+
+ANALYZE temp_new_titles
+;
+
+SELECT
+* 
+
+FROM
+temp_new_titles as t
+
+ORDER BY
+t.bib_level_code, 
+t.cat_date,
+t.title_norm
+;
+```
+
+
 ## Find Bib and Volume records with a cat date in the last week
 ```sql
 -- example of grabbing bib and volume records with a cat date in the last week,
