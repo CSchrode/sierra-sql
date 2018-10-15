@@ -1,3 +1,36 @@
+## Find record numbers where multiple 001 fields exist
+```sql
+WITH multi_001_field AS (
+	SELECT
+	v.record_id,
+	count(v.record_id) as count_001
+
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	v.marc_tag = '001'
+
+	GROUP BY
+	v.record_id
+
+	HAVING COUNT(v.record_id) > 1
+)
+
+SELECT
+r.record_type_code || r.record_num || 'a' as record_num,
+f.count_001
+
+FROM
+multi_001_field as f
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = f.record_id
+;
+```
+
 ## Find titles with a cat date within the last 60 days
 ```sql
 DROP TABLE IF EXISTS temp_new_titles;
