@@ -1,3 +1,96 @@
+# Export for "Contactable by Foundation"
+```sql
+SELECT
+-- COUNT(*)
+r.record_type_code || r.record_num || 'a' AS "RECORD #(PATRON)",
+p.birth_date_gmt::date AS "BIRTH DATE",
+-- EXTRACT(YEAR FROM AGE(p.birth_date_gmt)) as "AGE",
+p.checkout_total AS "TOT CHKOUT",
+expiration_date_gmt::date AS "EXP DATE",
+-- f.prefix AS "PATRN PREFIX NAME",
+f.first_name AS "PATRN FIRST NAME",
+f.middle_name AS "PATRN MIDDLE NAME",
+f.last_name AS "PATRN LAST NAME",
+-- f.suffix AS "PATRN SUFFIX NAME",
+-- get the first listed address
+(
+	SELECT
+	addr1
+
+	FROM
+	sierra_view.patron_record_address
+
+	WHERE
+	patron_record_id = p.record_id
+	
+	ORDER BY
+	display_order
+
+	LIMIT 1
+) AS "ADDR1",
+
+(
+	SELECT
+	city || ', ' || region || ' ' || postal_code
+
+	FROM
+	sierra_view.patron_record_address
+
+	WHERE
+	patron_record_id = p.record_id
+	
+	ORDER BY
+	display_order
+
+	LIMIT 1
+) AS "CITY STATE ZIP",
+(
+	SELECT
+	phone_number
+	FROM
+	sierra_view.patron_record_phone
+	WHERE
+	patron_record_id = p.record_id
+	ORDER BY
+	display_order
+	LIMIT 1	
+) AS "TELEPHONE",
+(	
+	SELECT
+	field_content
+	FROM
+	sierra_view.varfield
+	WHERE
+	record_id = p.record_id
+	AND varfield_type_code = 'z'
+	ORDER BY
+	occ_num
+	LIMIT 1
+) AS "EMAIL ADDR"
+
+FROM
+sierra_view.patron_record as p
+
+JOIN
+sierra_view.patron_record_fullname as f
+ON
+  f.patron_record_id = p.record_id
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = p.record_id
+
+WHERE
+-- pcode3 is "Foundation? (P3)"
+p.pcode3 = 2
+AND expiration_date_gmt::date >= NOW()::date
+-- patron is 18 or older
+AND EXTRACT(YEAR FROM AGE(p.birth_date_gmt))::INTEGER > 17::INTEGER 
+;
+```
+
+
 # Find patrons with more than 1 name listed
 ```sql
 SELECT
