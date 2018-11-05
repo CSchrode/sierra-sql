@@ -3,6 +3,17 @@
 SELECT
 -- COUNT(*)
 r.record_type_code || r.record_num || 'a' AS "RECORD #(PATRON)",
+-- p.home_library_code as "HOME LIBRARY",
+(
+	SELECT
+	l.name
+
+	FROM
+	sierra_view.location_myuser as l
+
+	WHERE
+	l.code = p.home_library_code
+) AS "HOME LIBRARY",
 p.birth_date_gmt::date AS "BIRTH DATE",
 -- EXTRACT(YEAR FROM AGE(p.birth_date_gmt)) as "AGE",
 p.checkout_total AS "TOT CHKOUT",
