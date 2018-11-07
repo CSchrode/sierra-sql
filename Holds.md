@@ -109,45 +109,126 @@ DROP TABLE IF EXISTS temp_freaky_holds_item_status;
 CREATE TEMP TABLE temp_freaky_holds_item_status AS
 SELECT
 *,
-(
-	SELECT
-	string_agg(DISTINCT i.location_code, ', ')
+CASE 
+WHEN t.record_type_code = 'b' THEN
+	(
+		SELECT
+		string_agg(DISTINCT i.location_code, ', ')
 
-	FROM
-	sierra_view.bib_record_item_record_link AS l
+		FROM
+		sierra_view.bib_record_item_record_link AS l
 
-	JOIN
-	sierra_view.item_record as i
-	ON
-	  i.record_id = l.item_record_id
+		JOIN
+		sierra_view.item_record as i
+		ON
+		  i.record_id = l.item_record_id
 
-	WHERE
-	l.bib_record_id = t.bib_record_id
-	AND i.item_status_code = '-'
-) AS items_status_dash,
-(
-	SELECT
-	string_agg(DISTINCT i.location_code, ', ')
+		-- don't include the item in the list if it's checked out
+		LEFT OUTER JOIN
+		sierra_view.checkout as c
+		ON
+		  c.item_record_id = l.item_record_id
 
-	FROM
-	sierra_view.bib_record_item_record_link AS l
+		WHERE
+		l.bib_record_id = t.record_id
+		AND c.id IS NULL
+		AND i.item_status_code = '-'
+	)
+WHEN t.record_type_code = 'j' THEN (
+		SELECT
+		string_agg(DISTINCT i.location_code, ', ')
 
-	JOIN
-	sierra_view.item_record as i
-	ON
-	  i.record_id = l.item_record_id
+		FROM
+		sierra_view.volume_record_item_record_link AS l
 
-	WHERE
-	l.bib_record_id = t.bib_record_id
-	AND (i.item_status_code = 'g' OR i.item_status_code = 'm')
-) AS items_status_g_or_m
+		JOIN
+		sierra_view.bib_record_item_record_link as il
+		ON
+		  il.item_record_id = l.item_record_id
+
+		JOIN
+		sierra_view.item_record as i
+		ON
+		  i.record_id = il.item_record_id
+
+		-- don't include the item in the list if it's checked out
+		LEFT OUTER JOIN
+		sierra_view.checkout as c
+		ON
+		  c.item_record_id = l.item_record_id
+
+		WHERE
+		l.volume_record_id = t.record_id
+		AND c.id IS NULL
+		AND i.item_status_code = '-'
+	
+)
+ELSE NULL 
+END AS items_status_dash,
+
+CASE 
+WHEN t.record_type_code = 'b' THEN
+	(
+		SELECT
+		string_agg(DISTINCT i.location_code, ', ')
+
+		FROM
+		sierra_view.bib_record_item_record_link AS l
+
+		JOIN
+		sierra_view.item_record as i
+		ON
+		  i.record_id = l.item_record_id
+
+		-- don't include the item in the list if it's checked out
+		LEFT OUTER JOIN
+		sierra_view.checkout as c
+		ON
+		  c.item_record_id = l.item_record_id
+
+		WHERE
+		l.bib_record_id = t.record_id
+		AND c.id IS NULL
+		AND (i.item_status_code = 'g' OR i.item_status_code = 'm')
+	) 
+	WHEN t.record_type_code = 'j' THEN (
+		SELECT
+		string_agg(DISTINCT i.location_code, ', ')
+
+		FROM
+		sierra_view.volume_record_item_record_link AS l
+
+		JOIN
+		sierra_view.bib_record_item_record_link as il
+		ON
+		  il.item_record_id = l.item_record_id
+
+		JOIN
+		sierra_view.item_record as i
+		ON
+		  i.record_id = il.item_record_id
+
+		-- don't include the item in the list if it's checked out
+		LEFT OUTER JOIN
+		sierra_view.checkout as c
+		ON
+		  c.item_record_id = l.item_record_id
+
+		WHERE
+		l.volume_record_id = t.record_id
+		AND c.id IS NULL
+		AND (i.item_status_code = 'g' OR i.item_status_code = 'm')	
+	)
+	ELSE NULL
+
+END AS items_status_g_or_m
 
 FROM
 temp_freaky_holds_titles as t
 ;
 
-DROP TABLE temp_freaky_holds;
-DROP TABLE temp_freaky_holds_titles;
+-- DROP TABLE temp_freaky_holds;
+-- DROP TABLE temp_freaky_holds_titles;
 
 -- output
 SELECT
