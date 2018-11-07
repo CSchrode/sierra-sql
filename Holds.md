@@ -1,3 +1,221 @@
+## Freaky-holds
+“Freaky” Holds
+Active holds criteria:
+* hold IS either bib 'b' OR volume= 'j' level
+* hold.is_ir IS false (not INN-Reach)
+* hold.is_ill IS false (not ILL)
+* hold.is_frozen IS false -- not frozen hold
+* patrons placing the hold has a ptype code IN (0, 1, 2, 3, 5, 6, 10, 11, 12, 15, 22, 30, 31, 32, 40, 41, 196)
+* hold age (adjusted for delay_days) IS greater than 30
+
+Title has attached items that have status `-` or (`g` or `m`)
+```sql
+DROP TABLE IF EXISTS temp_freaky_holds;
+CREATE TEMP TABLE temp_freaky_holds AS
+SELECT
+CASE
+-- 	we are not going to look at item level holds as part of this report, but could be useful later on...
+-- 	WHEN r.record_type_code = 'i' THEN (
+-- 		SELECT
+-- 		l.bib_record_id
+-- 		FROM
+-- 		sierra_view.bib_record_item_record_link as l
+-- 		WHERE
+-- 		l.item_record_id = h.record_id
+-- 		LIMIT 1
+-- 	)
+	WHEN r.record_type_code = 'j' THEN (
+		SELECT
+		l.bib_record_id
+
+		FROM
+		sierra_view.bib_record_volume_record_link as l
+
+		WHERE
+		l.volume_record_id = h.record_id
+
+		LIMIT 1
+	)
+
+	WHEN r.record_type_code = 'b' THEN (
+		h.record_id
+	)
+	ELSE NULL
+END AS bib_record_id,
+h.record_id,
+r.record_type_code AS record_type_code,
+h.id as hold_id,
+h.patron_record_id,
+p.ptype_code,
+h.placed_gmt,
+h.delay_days,
+-- age of hold in days
+(( extract(epoch FROM age(
+	(h.placed_gmt + concat(h.delay_days, ' days')::INTERVAL)
+)) / 3600 ) / 24 )::int AS age_days
+
+FROM
+sierra_view.hold as h
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = h.record_id
+
+JOIN
+sierra_view.patron_record as p
+ON
+  p.record_id = h.patron_record_id
+
+WHERE
+(r.record_type_code = 'b' OR r.record_type_code = 'j')
+AND h.is_ir is false -- not INN-Reach
+AND h.is_ill is false -- not ILL
+AND h.is_frozen is false -- not frozen hold
+AND p.ptype_code IN (0, 1, 2, 3, 5, 6, 10, 11, 12, 15, 22, 30, 31, 32, 40, 41, 196)
+AND (( extract(epoch FROM age(
+	(h.placed_gmt + concat(h.delay_days, ' days')::INTERVAL)
+)) / 3600 ) / 24 )::INTEGER > 30 
+;
+
+-- TESTING
+-- SELECT * FROM temp_freaky_holds LIMIT 100;
+
+
+-- aggregate the holds into the title, and count them
+DROP TABLE IF EXISTS temp_freaky_holds_titles;
+CREATE TEMP TABLE temp_freaky_holds_titles AS
+SELECT
+t.bib_record_id,
+t.record_id,
+t.record_type_code,
+count(t.bib_record_id) AS count_holds
+
+FROM
+temp_freaky_holds AS t
+
+GROUP BY
+t.bib_record_id,
+t.record_id,
+t.record_type_code
+;
+
+-- testing
+-- SELECT * FROM temp_freaky_holds_titles LIMIT 100;
+
+
+-- get attached items
+DROP TABLE IF EXISTS temp_freaky_holds_item_status;
+CREATE TEMP TABLE temp_freaky_holds_item_status AS
+SELECT
+*,
+(
+	SELECT
+	string_agg(DISTINCT i.location_code, ', ')
+
+	FROM
+	sierra_view.bib_record_item_record_link AS l
+
+	JOIN
+	sierra_view.item_record as i
+	ON
+	  i.record_id = l.item_record_id
+
+	WHERE
+	l.bib_record_id = t.bib_record_id
+	AND i.item_status_code = '-'
+) AS items_status_dash,
+(
+	SELECT
+	string_agg(DISTINCT i.location_code, ', ')
+
+	FROM
+	sierra_view.bib_record_item_record_link AS l
+
+	JOIN
+	sierra_view.item_record as i
+	ON
+	  i.record_id = l.item_record_id
+
+	WHERE
+	l.bib_record_id = t.bib_record_id
+	AND (i.item_status_code = 'g' OR i.item_status_code = 'm')
+) AS items_status_g_or_m
+
+FROM
+temp_freaky_holds_titles as t
+;
+
+DROP TABLE temp_freaky_holds;
+DROP TABLE temp_freaky_holds_titles;
+
+-- output
+SELECT
+r.record_type_code || r.record_num || 'a' as bib_record_num,
+t.count_holds,
+(
+-- 	SELECT 
+-- 	v.field_content as callnumber
+
+	SELECT
+	-- get the call number strip the subfield indicators
+	regexp_replace(trim(v.field_content), '(\|[a-z]{1})', '', 'ig')
+
+	FROM
+	sierra_view.varfield as v
+
+	WHERE
+	v.record_id = t.bib_record_id
+	AND v.varfield_type_code = 'c'
+
+	ORDER BY
+	v.occ_num
+
+	LIMIT 1
+) as callnumber,
+CASE
+	WHEN t.record_type_code = 'j' THEN (
+-- 		t.record_id
+		SELECT
+		v.field_content
+		FROM
+		sierra_view.varfield as v
+		WHERE
+		v.record_id = t.record_id
+		AND v.varfield_type_code = 'v'
+		ORDER BY
+		v.occ_num
+		LIMIT 1
+	)
+	ELSE NULL
+END AS volume,
+b.best_title, 
+b.best_author,
+t.items_status_dash,
+t.items_status_g_or_m
+
+FROM
+temp_freaky_holds_item_status as t
+
+JOIN
+sierra_view.record_metadata as r
+ON
+  r.id = t.bib_record_id
+
+JOIN
+sierra_view.bib_record_property as b
+ON
+  b.bib_record_id = t.bib_record_id
+
+
+WHERE
+t.items_status_dash IS NOT NULL
+OR t.items_status_g_or_m IS NOT NULL
+;
+```
+
+
+
 ## 90 day holds reports
 
 ### Bib-level 90 day holds report (testing)
