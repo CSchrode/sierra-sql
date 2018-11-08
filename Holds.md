@@ -8,7 +8,7 @@ Active holds criteria:
 * patrons placing the hold has a ptype code IN (0, 1, 2, 3, 5, 6, 10, 11, 12, 15, 22, 30, 31, 32, 40, 41, 196)
 * hold age (adjusted for delay_days) IS greater than 30
 
-Title has attached items that have status `-` or (`g` or `m`)
+Title or Volume has attached items that have status `-` OR (`g` OR `m`) AND are NOT checked out.
 ```sql
 DROP TABLE IF EXISTS temp_freaky_holds;
 CREATE TEMP TABLE temp_freaky_holds AS
