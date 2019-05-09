@@ -1044,3 +1044,96 @@ ON
   p.bib_record_id = t.bib_record_id
 ```
 
+## Paging List for Local 'On Hold Too Long' Items
+
+Version used by Akron-Summit County Public Library: Paging lists for local holds that fell off the paging lists and identifies bad holds that won't ever be filled.
+
+```sql
+SELECT title, call_no, available_items, on_hold_since, sending_location, pickup_location_code FROM (
+    SELECT
+        string_agg(distinct title, ' | ') as title,
+        CASE WHEN
+            string_agg(distinct call_no_norm, ' | ') != ''
+        THEN
+            string_agg(distinct call_no_norm, ' | ')
+        ELSE
+            string_agg(distinct call_no_one, ' | ')
+        END as call_no,
+        string_agg(distinct barcode, ' | ') as available_items,
+        extract(year from min(placed_gmt)) || '-' || LPAD(extract(month from min(placed_gmt))::text, 2, '0') || '-' || LPAD(extract(day from min(placed_gmt))::text, 2, '0') as on_hold_since, -- Format: YYYY-MM-DD, TEXT, sortable
+        paged_location_code as sending_location,
+        string_agg(distinct subview.pickup_location_code, ' | ') as pickup_location_code,
+        rank() OVER (PARTITION BY record_num ORDER BY placed_gmt ASC) as holdshelf_position
+    FROM (
+        SELECT
+            'b' || bib_view.record_num || 'a' as record_num,
+            item_view.barcode,
+            bib_view.title,
+            pickup_location_code,
+            substring(item_view.location_code FROM 1 for 2) as paged_location_code,
+            LTRIM(CONCAT(prestamp_one.content, ' ', subview_one.content, ' ', poststamp_one.content)) as call_no_one, -- Bib-Level Call No.
+            LTRIM(REPLACE(REPLACE(REPLACE(n.call_number, '|j', ''), '|a', ' '), '|b', ' ')) as call_no_norm, -- Item-Level Call No.
+            placed_gmt
+        FROM hold
+        JOIN
+            bib_record_item_record_link ON bib_record_item_record_link.bib_record_id = hold.record_id
+        JOIN
+            bib_view ON hold.record_id = bib_view.id
+        JOIN
+            item_view ON item_view.id = bib_record_item_record_link.item_record_id AND item_view.item_status_code = '-'
+        LEFT JOIN -- Item Call Number overrides Bib Call Number
+            subfield_view prestamp_one ON prestamp_one.record_id = bib_record_item_record_link.bib_record_id AND prestamp_one.marc_tag = '092' AND prestamp_one.tag = 'j' AND prestamp_one.content != ''
+        LEFT JOIN -- Item Call Number overrides Bib Call Number
+            subfield_view subview_one ON subview_one.record_id = bib_record_item_record_link.bib_record_id AND ((subview_one.marc_tag IN ('095', '099', '945') AND subview_one.tag='j') OR (subview_one.marc_tag = '092' AND subview_one.tag = 'a')) AND subview_one.content != ''
+        LEFT JOIN -- Item Call Number overrides Bib Call Number
+            subfield_view poststamp_one ON poststamp_one.record_id = bib_record_item_record_link.bib_record_id AND ((poststamp_one.marc_tag IN ('095', '099', '945') AND poststamp_one.tag='a') OR (poststamp_one.marc_tag = '092' AND poststamp_one.tag = 'b')) AND poststamp_one.content != ''
+        LEFT JOIN
+            item_record_property as n ON n.item_record_id = item_view.id
+        WHERE
+            status = '0' -- Find only unfilled holds
+        AND
+            placed_gmt <= CURRENT_DATE - INTERVAL '14 days' -- Grace Period for Item / Title Paging List to handle the hold
+        AND
+            expires_gmt >= CURRENT_DATE + INTERVAL '1 day'
+        AND item_view.id NOT IN (SELECT item_record_id FROM checkout) -- Item cannot be checked out
+        AND
+            is_frozen = false AND (delay_days = 0 OR extract(days from (CURRENT_DATE - placed_gmt)) >= delay_days)
+        ORDER BY extract(days from CURRENT_DATE - placed_gmt) -- Convert age to integer
+    ) as subview
+    GROUP BY record_num, paged_location_code, pickup_location_code, placed_gmt
+    ORDER BY call_no, title, paged_location_code, placed_gmt
+) as subview
+-- Only fill first, non-frozen / thawed NBF Date, hold
+WHERE holdshelf_position = 1
+-- 'sending_location' is first two characters of branch location code - intended for 'Check Shelves' situations
+    -- AND sending_location = 'sending_location'
+-- Receiving Location is first two characters of branch location code - intended for 'Manually Page for Hold' situations
+    -- AND (subview.pickup_location_code LIKE 'receiving_location' || ' | %' OR subview.pickup_location_code = 'receiving_location')
+-- Sending and Receiving can be used together, although 2 distinct reports are preferred
+```
+
+## INN-Reach Paging List
+
+Version used by Akron-Summit County Public Library: Pull List for "Cleared" SearchOhio Notices
+
+```sql
+SELECT item_view.barcode, subview.call_no, item_view.location_code, message, subview.ir_print_name, subview.ir_delivery_stop_name, subview.title, item_view.item_status_code
+FROM (
+    SELECT hold.record_id, hold.id as id, innreach.content as message, hold.ir_print_name, hold.ir_delivery_stop_name, bib_view.title, bib_record_item_record_link.item_record_id, patron_record.ptype_code, CONCAT(prestamp.content, ' ', subfield_view.content)
+    AS call_no
+    FROM "sierra_view"."hold"
+    JOIN patron_record ON patron_record.record_id = hold.patron_record_id
+    LEFT JOIN bib_record_item_record_link ON hold.record_id IN (bib_record_item_record_link.bib_record_id, bib_record_item_record_link.item_record_id)
+    LEFT JOIN bib_view ON bib_view.id = bib_record_item_record_link.bib_record_id
+    LEFT JOIN subfield_view ON subfield_view.record_id IN (bib_record_item_record_link.item_record_id, bib_record_item_record_link.bib_record_id) AND subfield_view.marc_tag = '099' AND subfield_view.tag='a'
+    LEFT JOIN subfield_view prestamp ON prestamp.record_id IN (bib_record_item_record_link.item_record_id, bib_record_item_record_link.bib_record_id) AND prestamp.marc_tag = '099' AND prestamp.tag='j'
+    LEFT JOIN subfield_view innreach ON innreach.record_id = bib_record_item_record_link.item_record_id AND innreach.field_type_code = 'm' AND innreach.record_type_code = 'i'
+    WHERE hold.is_frozen = false
+    GROUP BY hold.record_id, hold.id, message, hold.ir_print_name, hold.ir_delivery_stop_name, bib_view.title, bib_record_item_record_link.item_record_id, patron_record.ptype_code, call_no
+) as subview
+LEFT JOIN item_view ON item_view.id = subview.item_record_id
+-- Replace branch_code with 2 character branch code
+WHERE location_code LIKE 'branch_code' || '%' AND ir_delivery_stop_name IS NOT NULL AND item_status_code = '('
+GROUP BY message, barcode, call_no, location_code, ir_print_name, ir_delivery_stop_name, title, item_status_code
+ORDER BY call_no ASC, location_code ASC
+```
